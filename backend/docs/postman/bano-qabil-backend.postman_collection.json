@@ -1,0 +1,2506 @@
+{
+  "_": {
+    "postman_id": "f3173087-3aad-44f8-b4a0-a6c24f55b744"
+  },
+  "item": [
+    {
+      "id": "2a8e43d4-c637-4fd5-b83f-85dba20bbb25",
+      "name": "Auth",
+      "description": {
+        "content": "Registration, login, session lookup and email verification.\n\n### Email verification rule (important)\n\nThe register controller only sends a verification email when the request body contains `role: \"customer\"` **explicitly**.\n\n| Body `role` | `isEmailVerified` | Verification email | Can log in immediately? |\n| --- | --- | --- | --- |\n| `\"customer\"` | `false` | Sent | No — verify first |\n| `\"admin\"` | `true` | Not sent | Yes |\n| omitted | `true` (role still defaults to `customer`) | Not sent | Yes |\n\nSo for quick local testing, omit `role` and you get a usable customer account with no SMTP round-trip.",
+        "type": "text/plain"
+      },
+      "item": [
+        {
+          "id": "d20ec8d8-4ed8-48e0-a75e-c2457e93f8b9",
+          "name": "Register (Customer)",
+          "request": {
+            "description": {
+              "content": "Creates a **customer** account and emails a verification link.\n\n`Public` — no token required.\n\n### Body\n\n| Field | Type | Required | Notes |\n| --- | --- | --- | --- |\n| `name` | string | ✅ | Trimmed |\n| `email` | string | ✅ | Unique, lowercased, must match `x@y.z` |\n| `password` | string | ✅ | Min 6 chars, hashed with bcrypt before saving |\n| `role` | `customer` \\| `admin` | ❌ | Defaults to `customer` |\n| `phone` | string | ❌ | **Unique** across users — reuse causes a duplicate-key error |\n| `address` | object | ❌ | `street`, `city`, `state`, `zip`, `country` |\n\n### Responses\n\n**201 Created**\n```json\n{\n  \"message\": \"User registered successfully. Please verify your email to activate your account.\",\n  \"user\": {\n    \"id\": \"66f0...\",\n    \"name\": \"Ali Haider\",\n    \"email\": \"customer@example.com\",\n    \"role\": \"customer\",\n    \"isEmailVerified\": false\n  }\n}\n```\n\n**400 Bad Request** — `{ \"message\": \"Name, email and password are required\" }` or `{ \"message\": \"User already exists\" }`\n\n### Notes\n\n- Because `role` is `customer` here, login stays blocked with `403` until the email is verified.\n- If SMTP vars (`EMAIL_HOST`, `EMAIL_USER`, `EMAIL_PASS`) are missing, the account is still created but no mail goes out — a warning is logged. Grab the token straight from the `emailVerificationToken` field in MongoDB in that case.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "auth",
+                "register"
+              ],
+              "host": [
+                "{{base_url}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "method": "POST",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Ali Haider\",\n    \"email\": \"customer@example.com\",\n    \"password\": \"Pass@1234\",\n    \"role\": \"customer\",\n    \"phone\": \"03001234567\",\n    \"address\": {\n        \"street\": \"12 Main Street\",\n        \"city\": \"Karachi\",\n        \"state\": \"Sindh\",\n        \"zip\": \"75500\",\n        \"country\": \"Pakistan\"\n    }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth",
+              "noauth": []
+            }
+          },
+          "response": [
+            {
+              "_": {
+                "postman_previewlanguage": "json"
+              },
+              "id": "ec3075e0-36bd-449e-a9b8-3d0d23739e6a",
+              "name": "201 — Created",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "api",
+                    "auth",
+                    "register"
+                  ],
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"name\": \"Ali Haider\",\n    \"email\": \"customer@example.com\",\n    \"password\": \"Pass@1234\",\n    \"role\": \"customer\"\n}"
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n    \"message\": \"User registered successfully. Please verify your email to activate your account.\",\n    \"user\": {\n        \"id\": \"66f0a1b2c3d4e5f6a7b8c9d0\",\n        \"name\": \"Ali Haider\",\n        \"email\": \"customer@example.com\",\n        \"role\": \"customer\",\n        \"isEmailVerified\": false\n    }\n}",
+              "cookie": []
+            },
+            {
+              "_": {
+                "postman_previewlanguage": "json"
+              },
+              "id": "588d5d25-bb05-4163-bd2b-6465e540b7e2",
+              "name": "400 — User already exists",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "api",
+                    "auth",
+                    "register"
+                  ],
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"name\": \"Ali Haider\",\n    \"email\": \"customer@example.com\",\n    \"password\": \"Pass@1234\"\n}"
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n    \"message\": \"User already exists\"\n}",
+              "cookie": []
+            }
+          ],
+          "event": []
+        },
+        {
+          "id": "d3899412-71ef-4137-bfae-50566b4a3e12",
+          "name": "Register (Admin)",
+          "request": {
+            "description": {
+              "content": "Bootstraps an **admin** account. Same endpoint as customer registration, but `role: \"admin\"` marks the account as verified immediately, so you can log in right away.\n\n`Public` — no token required. Use this once per fresh database, then rely on **Users → Create User** for further accounts.\n\n### Responses\n\n**201 Created**\n```json\n{\n  \"message\": \"User registered successfully.\",\n  \"user\": {\n    \"id\": \"66f0...\",\n    \"name\": \"Admin User\",\n    \"email\": \"admin@example.com\",\n    \"role\": \"admin\"\n  }\n}\n```\n\n`isEmailVerified` is omitted from the response for non-customer roles, but is stored as `true`.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "auth",
+                "register"
+              ],
+              "host": [
+                "{{base_url}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "method": "POST",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Admin User\",\n    \"email\": \"{{admin_email}}\",\n    \"password\": \"{{admin_password}}\",\n    \"role\": \"admin\",\n    \"phone\": \"03009999999\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth",
+              "noauth": []
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "id": "912ab236-b8fe-4656-a544-d5f66eb59491",
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "if (pm.response.code === 201) {",
+                  "    const body = pm.response.json();",
+                  "    pm.environment.set('admin_email', body.user.email);",
+                  "    pm.environment.set('user_id', body.user.id);",
+                  "    console.log('Admin created — now run \"Login\".');",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "294703ae-c8a5-4b92-a0f3-0602f266c7f1",
+          "name": "Login",
+          "request": {
+            "description": {
+              "content": "Exchanges email + password for a session **cookie**.\n\n`🌍 Public` — no token required.\n\n> **This is the request that powers the whole collection.** The JWT is no longer in the response body — it comes back as an httpOnly cookie which Postman stores in its cookie jar and replays automatically.\n\n### Body\n\n| Field | Type | Required |\n| --- | --- | --- |\n| `email` | string | ✅ |\n| `password` | string | ✅ |\n\n### Responses\n\n**200 OK**\n```json\n{\n  \"message\": \"Login successfully\",\n  \"data\": {\n    \"id\": \"66f0...\",\n    \"name\": \"Admin User\",\n    \"email\": \"admin@example.com\",\n    \"role\": \"admin\",\n    \"isEmailVerified\": true\n  }\n}\n```\n\n| Status | Body | Cause |\n| --- | --- | --- |\n| `400` | `Email and password are required` | Missing field |\n| `401` | `Invalid email or password` | Wrong credentials (same message for unknown email — deliberate) |\n| `403` | `Please verify your email before logging in` | `isEmailVerified` is `false` |\n\n### The cookie\n\n```\nSet-Cookie: token=<jwt>; Max-Age=604800; Path=/; HttpOnly; SameSite=Lax\n```\n\n- **httpOnly** — page JavaScript cannot read it, so an XSS bug cannot steal the session.\n- **Max-Age 604800** — 7 days, the same as the JWT expiry.\n- `secure` + `SameSite=None` when `NODE_ENV=production`; `SameSite=Lax` in development.\n\nNothing sets a failed login's cookie — a `401` / `403` response carries no `Set-Cookie` at all.\n\n### Clients\n\n| Client | What to do |\n| --- | --- |\n| Postman | Nothing — the cookie jar handles it (**Cookies** link under Send) |\n| Browser (fetch) | `fetch(url, { credentials: \"include\" })` |\n| Browser (axios) | `axios.defaults.withCredentials = true` |\n| Mobile / server-to-server | Read the `Set-Cookie` value, or keep using `Authorization: Bearer <jwt>` — the header path still works |\n\nCORS must name your exact frontend origin (`http://localhost:3000` and `http://localhost:5173` are allowed by default) — `origin: '*'` cannot be combined with credentials.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ],
+              "host": [
+                "{{base_url}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "method": "POST",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"{{admin_email}}\",\n    \"password\": \"{{admin_password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth",
+              "noauth": []
+            }
+          },
+          "response": [
+            {
+              "_": {
+                "postman_previewlanguage": "json"
+              },
+              "id": "1a19341c-079f-4891-bf69-4aea90f316c3",
+              "name": "200 — Login successful",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "api",
+                    "auth",
+                    "login"
+                  ],
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"email\": \"admin@example.com\",\n    \"password\": \"Admin@1234\"\n}"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n    \"message\": \"Login successfully\",\n    \"token\": \"<your-jwt-token-here>\",\n    \"user\": {\n        \"id\": \"66f0a1b2c3d4e5f6a7b8c9d0\",\n        \"name\": \"Admin User\",\n        \"email\": \"admin@example.com\",\n        \"role\": \"admin\",\n        \"isEmailVerified\": true\n    }\n}",
+              "cookie": []
+            },
+            {
+              "_": {
+                "postman_previewlanguage": "json"
+              },
+              "id": "1d49474d-0baa-47db-8745-c88561a1ba34",
+              "name": "403 — Email not verified",
+              "originalRequest": {
+                "url": {
+                  "path": [
+                    "api",
+                    "auth",
+                    "login"
+                  ],
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "query": [],
+                  "variable": []
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "method": "POST",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"email\": \"customer@example.com\",\n    \"password\": \"Pass@1234\"\n}"
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n    \"message\": \"Please verify your email before logging in\"\n}",
+              "cookie": []
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "id": "adb22536-dd41-4e75-ab1a-97ceb88d7d0e",
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "if (pm.response.code === 200) {",
+                  "    const body = pm.response.json();",
+                  "",
+                  "    pm.test('Token is NOT in the response body', function () {",
+                  "        pm.expect(body.token).to.be.undefined;",
+                  "    });",
+                  "",
+                  "    pm.test('Session cookie was set', function () {",
+                  "        pm.expect(pm.cookies.has('token')).to.be.true;",
+                  "    });",
+                  "",
+                  "    // Postman cookie jar khud replay karta hai; ye copy sirf un requests ke",
+                  "    // liye hai jo collection-level `Bearer {{token}}` header use karti hain.",
+                  "    if (pm.cookies.has('token')) {",
+                  "        pm.environment.set('token', pm.cookies.get('token'));",
+                  "    }",
+                  "",
+                  "    pm.environment.set('user_id', body.data.id);",
+                  "    pm.environment.set('user_role', body.data.role);",
+                  "",
+                  "    console.log('Logged in as', body.data.email, '- role:', body.data.role);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "ec5d2c32-26bc-49c9-80e6-e04132a88d4f",
+          "name": "Logout",
+          "request": {
+            "description": {
+              "content": "Clears the session cookie.\n\n`🌍 Public` — deliberately **not** behind `authenticate`.\n\nWhy no auth: if the JWT has already expired, the user still needs the cookie removed from their browser. Requiring a valid token would leave a dead cookie sitting there. Logging out twice is therefore harmless — it always answers `200`.\n\n### Response — 200 OK\n```json\n{ \"message\": \"Logout successfully\" }\n```\n\n```\nSet-Cookie: token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; SameSite=Lax\n```\n\n> **JWT is stateless.** This removes the cookie from the client; it does not revoke the token server-side. Anyone who copied the raw JWT beforehand can keep using it until it expires. Real revocation needs a token blacklist or short-lived access tokens plus refresh tokens.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "auth",
+                "logout"
+              ],
+              "host": [
+                "{{base_url}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "method": "POST"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "id": "e6529fe9-9791-4a4e-a348-eecafe6dbf82",
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "// Stale value ko environment mein chhorna confusing hota hai.",
+                  "pm.environment.set('token', '');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "5975168a-0cfd-4e26-8917-8e0a406997b0",
+          "name": "Get Current User (Me)",
+          "request": {
+            "description": {
+              "content": "Returns the full user document for whoever owns the current session.\n\n`🔒 Authenticated` — any role. The token is read from the `token` cookie first, then from an `Authorization: Bearer` header.\n\n### Responses\n\n**200 OK**\n```json\n{\n  \"_id\": \"66f0...\",\n  \"name\": \"Admin User\",\n  \"email\": \"admin@example.com\",\n  \"role\": \"admin\",\n  \"address\": { \"city\": \"Karachi\", \"country\": \"Pakistan\" },\n  \"phone\": \"03009999999\",\n  \"isEmailVerified\": true,\n  \"createdAt\": \"2026-08-06T10:15:00.000Z\",\n  \"updatedAt\": \"2026-08-06T10:15:00.000Z\"\n}\n```\n\n| Status | Cause |\n| --- | --- |\n| `401` | `Authentication required` (neither cookie nor `Bearer` header), `Invalid token`, or `Token expired` |\n| `404` | Token is valid but the user was deleted |",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "auth",
+                "me"
+              ],
+              "host": [
+                "{{base_url}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "method": "GET"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "id": "1046cf78-e915-4edf-b9e5-41d7947fa8fc",
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Password is never returned', function () {",
+                  "    pm.expect(pm.response.json()).to.not.have.property('password');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "eff513a0-22e4-4f54-89fc-21629cd36abd",
+          "name": "Verify Email",
+          "request": {
+            "description": {
+              "content": "Flips `isEmailVerified` to `true` and clears the stored token.\n\n`Public` — no auth header; the query-string token *is* the credential.\n\n### Query params\n\n| Param | Required | Description |\n| --- | --- | --- |\n| `token` | ✅ | Signed JWT sent in the verification email. Valid for **24 hours**. |\n\n### How to get the token locally\n\nThe email links to `FRONTEND_URL/verify-email?token=...`. Two ways to grab it without a frontend:\n\n1. Open the email and copy the `token` query param out of the link.\n2. No SMTP configured? Read it straight from Mongo:\n   ```js\n   db.users.findOne({ email: \"customer@example.com\" }, { emailVerificationToken: 1 })\n   ```\n\nPaste it into the `verification_token` environment variable and send.\n\n### Responses\n\n| Status | Body |\n| --- | --- |\n| `200` | `{ \"message\": \"Email verified successfully\" }` |\n| `400` | `Verification token is required` / `Invalid or expired verification token` / `Verification token has expired` |\n\nThe endpoint is single-use: the token is nulled after success, so a second call returns `400`.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "auth",
+                "verify-email"
+              ],
+              "host": [
+                "{{base_url}}"
+              ],
+              "query": [
+                {
+                  "description": {
+                    "content": "The JWT from the verification email link (24 h expiry).",
+                    "type": "text/plain"
+                  },
+                  "key": "token",
+                  "value": "{{verification_token}}"
+                }
+              ],
+              "variable": []
+            },
+            "method": "GET",
+            "auth": {
+              "type": "noauth",
+              "noauth": []
+            }
+          },
+          "response": [],
+          "event": []
+        },
+        {
+          "id": "78f648cc-863b-4cb4-885f-8a85b25e3471",
+          "name": "Forgot Password",
+          "request": {
+            "description": {
+              "content": "Emails a one-hour password reset link.\n\n`🌍 Public`\n\n### Body\n| Field | Type | Required |\n| --- | --- | --- |\n| `email` | string | ✅ |\n\n### Response — 200 OK (always the same)\n```json\n{ \"message\": \"If an account exists for that email, a password reset link has been sent.\" }\n```\n\nThe answer never changes, whether the email exists or not — otherwise this route becomes a tool for discovering which emails are registered (user enumeration).\n\n| Status | Cause |\n| --- | --- |\n| `400` | `Email is required` |\n\nThe link points at `${FRONTEND_URL}/reset-password?token=<jwt>` (`FRONTEND_URL` defaults to `http://localhost:5173`). With no SMTP configured, the backend logs the link to its console instead of sending it — that is how you test this locally.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "auth",
+                "forgot-password"
+              ],
+              "host": [
+                "{{base_url}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "method": "POST",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@example.com\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "id": "cca7b556-a413-4698-adcd-a3a173da688f",
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "56b76dd2-f53c-4532-9454-c257ee81ac46",
+          "name": "Reset Password",
+          "request": {
+            "description": {
+              "content": "Sets a new password using the token from the reset email.\n\n`🌍 Public`\n\n### Body\n| Field | Type | Required | Notes |\n| --- | --- | --- | --- |\n| `token` | string (JWT) | ✅ | From the email link's `?token=` |\n| `password` | string | ✅ | At least 6 characters |\n\n### Response — 200 OK\n```json\n{ \"message\": \"Password reset successfully. Please log in with your new password.\" }\n```\n\n| Status | Cause |\n| --- | --- |\n| `400` | `Token and new password are required` |\n| `400` | `Password must be at least 6 characters` |\n| `400` | `Password reset link has expired` (older than 1 hour) |\n| `400` | `Invalid password reset link` (bad signature) |\n| `400` | `Invalid or already used password reset link` |\n\n**One-time use.** The token is also stored on the user document and cleared on success, so the same link cannot be replayed even while its JWT is still valid. The current session cookie is cleared too, forcing a fresh login.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "auth",
+                "reset-password"
+              ],
+              "host": [
+                "{{base_url}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "method": "POST",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"<paste-token-from-email-link>\",\n  \"password\": \"NewPass@123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": []
+        }
+      ],
+      "event": []
+    },
+    {
+      "id": "45a4d640-1226-4a88-a9f6-11007d631e81",
+      "name": "Users",
+      "description": {
+        "content": "User management. Every route requires a token; most require the `admin` role.\n\n| Method | Path | Access |\n| --- | --- | --- |\n| `POST` | `/api/users` | admin |\n| `GET` | `/api/users` | admin |\n| `GET` | `/api/users/:id` | admin, or the user themselves |\n| `PATCH` | `/api/users/:id` | admin, or the user themselves |\n| `DELETE` | `/api/users/:id` | admin |",
+        "type": "text/plain"
+      },
+      "item": [
+        {
+          "id": "a9eaa82b-e209-4c39-82bd-be66af20ddae",
+          "name": "Create User (admin)",
+          "request": {
+            "description": {
+              "content": "Creates a user on behalf of an admin.\n\n`🔒 Authenticated` · `👑 admin only`\n\nInternally this reuses the same controller as **Auth → Register**, so the body, validation and email-verification behaviour are identical — see that request for the full field table.\n\nThe new user's id is saved to `{{target_user_id}}` for the follow-up requests in this folder.\n\n| Status | Cause |\n| --- | --- |\n| `201` | Created |\n| `400` | Missing required field, or email/phone already taken |\n| `401` | No token |\n| `403` | Token belongs to a non-admin |",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "users"
+              ],
+              "host": [
+                "{{base_url}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "method": "POST",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Staff Member\",\n    \"email\": \"staff@example.com\",\n    \"password\": \"Staff@1234\",\n    \"role\": \"admin\",\n    \"phone\": \"03111234567\",\n    \"address\": {\n        \"street\": \"5 Market Road\",\n        \"city\": \"Lahore\",\n        \"state\": \"Punjab\",\n        \"zip\": \"54000\",\n        \"country\": \"Pakistan\"\n    }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "id": "76ffc15b-d112-43f6-81f7-fdd635d46df7",
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "if (pm.response.code === 201) {",
+                  "    pm.environment.set('target_user_id', pm.response.json().user.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "c92e784c-d3e1-4cc1-9a98-4cf6ebd1b25d",
+          "name": "Get All Users (admin)",
+          "request": {
+            "description": {
+              "content": "Lists users with the shared query engine — search, filter, sort, paginate, field-limit.\n\n`🔒 Authenticated` · `👑 admin only`\n\n### Useful queries\n\n| Query | Effect |\n| --- | --- |\n| `?search=ali` | Regex over `name` and `email` |\n| `?role=admin` | Only admins |\n| `?isEmailVerified=false` | Accounts that never verified |\n| `?sort=name&limit=50` | Alphabetical, 50 per page |\n| `?fields=name,email,role` | Slim rows for a table |\n| `?createdAt[gte]=2026-01-01` | Signed up this year |\n\n### Response — 200 OK\n```json\n{\n  \"message\": \"Users get successfully\",\n  \"data\": [\n    {\n      \"_id\": \"66f0...\",\n      \"name\": \"Admin User\",\n      \"email\": \"admin@example.com\",\n      \"role\": \"admin\",\n      \"isEmailVerified\": true,\n      \"createdAt\": \"2026-08-06T10:15:00.000Z\"\n    }\n  ],\n  \"pagination\": { \"total\": 11, \"page\": 1, \"limit\": 10, \"totalPages\": 2, \"hasNextPage\": true, \"hasPrevPage\": false }\n}\n```\n\n`password` and `emailVerificationToken` are `select: false` in the schema, and the controller also strips them out of `?fields=` — so `?fields=name,+password` cannot pull a hash back into the response.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "users"
+              ],
+              "host": [
+                "{{base_url}}"
+              ],
+              "query": [
+                {
+                  "description": {
+                    "content": "Page number. Min 1. Default 1.",
+                    "type": "text/plain"
+                  },
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "description": {
+                    "content": "Page size. Default 10, max 100.",
+                    "type": "text/plain"
+                  },
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "description": {
+                    "content": "Multi-field sort; `-` = descending.",
+                    "type": "text/plain"
+                  },
+                  "key": "sort",
+                  "value": "-createdAt"
+                },
+                {
+                  "description": {
+                    "content": "Regex over name and email.",
+                    "type": "text/plain"
+                  },
+                  "key": "search",
+                  "value": ""
+                },
+                {
+                  "description": {
+                    "content": "`customer` or `admin`.",
+                    "type": "text/plain"
+                  },
+                  "key": "role",
+                  "value": ""
+                },
+                {
+                  "description": {
+                    "content": "Comma-separated field list.",
+                    "type": "text/plain"
+                  },
+                  "key": "fields",
+                  "value": ""
+                }
+              ],
+              "variable": []
+            },
+            "method": "GET"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "id": "3a3a609c-513b-49d8-8afe-59eb1d7a0393",
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Returns a data array', function () {",
+                  "    pm.expect(pm.response.json().data).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "3cf28775-7703-4135-99a0-71eda9d1d012",
+          "name": "Get User By ID",
+          "request": {
+            "description": {
+              "content": "Fetches a single user document.\n\n`🔒 Authenticated` — an admin may fetch anyone; a customer may only fetch **their own** id.\n\n### Path params\n\n| Param | Description |\n| --- | --- |\n| `id` | Mongo ObjectId. Defaults to `{{target_user_id}}`; swap in `{{user_id}}` to fetch yourself. |\n\n| Status | Cause |\n| --- | --- |\n| `200` | User document |\n| `403` | `Forbidden` — non-admin requesting somebody else's id |\n| `404` | `User not found` |\n| `400` | Malformed ObjectId — `Invalid _id: <value>` |",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "users",
+                "{{target_user_id}}"
+              ],
+              "host": [
+                "{{base_url}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "method": "GET"
+          },
+          "response": [],
+          "event": []
+        },
+        {
+          "id": "ca1bfad9-246a-4e13-8537-22df7dfc8283",
+          "name": "Update User",
+          "request": {
+            "description": {
+              "content": "Partially updates a user.\n\n`🔒 Authenticated` — an admin may update anyone; a customer may only update **themselves**.\n\n### Body — all fields optional\n\n| Field | Notes |\n| --- | --- |\n| `name` | |\n| `email` | Must stay unique |\n| `password` | Re-hashed through the model's `pre(\"save\")` hook — safe to send in plain text over HTTPS |\n| `phone` | Unique |\n| `address` | Replaces the whole sub-document |\n| `role` | **Silently dropped for non-admins.** Only an admin can promote or demote. |\n\n### Responses\n\n**200 OK**\n```json\n{\n  \"message\": \"User updated successfully\",\n  \"user\": { \"_id\": \"66f0...\", \"name\": \"Updated Name\", \"role\": \"customer\" }\n}\n```\n\n| Status | Cause |\n| --- | --- |\n| `403` | `Forbidden` — non-admin editing another user |\n| `404` | `User not found` |",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "users",
+                "{{target_user_id}}"
+              ],
+              "host": [
+                "{{base_url}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "method": "PATCH",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Updated Name\",\n    \"phone\": \"03211234567\",\n    \"address\": {\n        \"street\": \"9 New Street\",\n        \"city\": \"Islamabad\",\n        \"state\": \"ICT\",\n        \"zip\": \"44000\",\n        \"country\": \"Pakistan\"\n    }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": []
+        },
+        {
+          "id": "8930de1f-2f45-429b-ab66-3fe0dd6ae34c",
+          "name": "Delete User (admin)",
+          "request": {
+            "description": {
+              "content": "Permanently removes a user.\n\n`🔒 Authenticated` · `👑 admin only`\n\nHard delete — there is no soft-delete flag, and the user's orders are **not** cascaded.\n\n| Status | Body |\n| --- | --- |\n| `200` | `{ \"message\": \"User deleted successfully\" }` |\n| `403` | `Forbidden: insufficient role` |\n| `404` | `User not found` |",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "users",
+                "{{target_user_id}}"
+              ],
+              "host": [
+                "{{base_url}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "method": "DELETE"
+          },
+          "response": [],
+          "event": []
+        }
+      ],
+      "event": []
+    },
+    {
+      "id": "7390bdb5-e480-479d-a37b-b1713fe777bf",
+      "name": "Categories",
+      "description": {
+        "content": "Product categories, optionally nested through `parentCategory`.\n\n| Method | Path | Access |\n| --- | --- | --- |\n| `GET` | `/api/categories` | public |\n| `GET` | `/api/categories/:id` | public |\n| `POST` | `/api/categories` | admin · multipart |\n| `PATCH` | `/api/categories/:id` | admin · multipart |\n| `DELETE` | `/api/categories/:id` | admin |\n\n`slug` is generated automatically from `name` (lowercased, spaces → hyphens) whenever the document is saved through `.create()` or `.save()`.",
+        "type": "text/plain"
+      },
+      "item": [
+        {
+          "id": "c6a32761-ddaf-4e45-a25d-1db8c6fb88dc",
+          "name": "Get All Categories",
+          "request": {
+            "description": {
+              "content": "Returns categories in one of **two modes**. The response tells you which one you got via `mode`.\n\n`🌍 Public`\n\n### 1. `tree` — the default\n\nEvery category, nested through `parentCategory`, each parent carrying a `subCategories` array. This is what a navigation menu needs, so it is never paginated: half a tree loses the parent–child links.\n\n```json\n{\n  \"message\": \"Categories fetched successfully.\",\n  \"mode\": \"tree\",\n  \"data\": [\n    {\n      \"_id\": \"66f1...\",\n      \"name\": \"Electronics\",\n      \"slug\": \"electronics\",\n      \"image\": \"/uploads/66f1a2b3c4d5e6f7a8b9c0d1.png\",\n      \"parentCategory\": null,\n      \"subCategories\": [\n        { \"_id\": \"66f2...\", \"name\": \"Laptops\", \"slug\": \"laptops\", \"parentCategory\": \"66f1...\", \"subCategories\": [] }\n      ]\n    }\n  ]\n}\n```\n\n### 2. `flat` — the shared query engine\n\nSearch, filter, sort, paginate and field-limit, with `parentCategory` populated to `{ name, slug }`. Meant for an admin table.\n\nSwitch on with `?flat=true`, or simply by sending `search`, `page` or `limit` — those three are meaningless in tree mode, so they flip it automatically.\n\n```json\n{\n  \"message\": \"Categories fetched successfully.\",\n  \"mode\": \"flat\",\n  \"data\": [\n    { \"_id\": \"66f2...\", \"name\": \"Laptops\", \"parentCategory\": { \"_id\": \"66f1...\", \"name\": \"Electronics\", \"slug\": \"electronics\" } }\n  ],\n  \"pagination\": { \"total\": 15, \"page\": 1, \"limit\": 10, \"totalPages\": 2, \"hasNextPage\": true, \"hasPrevPage\": false }\n}\n```\n\n| Query | Effect |\n| --- | --- |\n| `?flat=true` | Flat list, no other params needed |\n| `?search=lap` | Regex over `name` and `description` (implies flat) |\n| `?parentCategory=66f1...` | Direct children of one category |\n| `?parentCategory=null` | Root categories only |\n| `?sort=name&limit=50` | Alphabetical page of 50 |\n\nThe test script stores the first item's `_id` in `{{category_id}}`, which the product requests reuse — it works in either mode.\n\nPrefix `image` with `{{base_url}}` to render it.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "categories"
+              ],
+              "host": [
+                "{{base_url}}"
+              ],
+              "query": [
+                {
+                  "description": {
+                    "content": "`true` = flat paginated list instead of the nested tree.",
+                    "type": "text/plain"
+                  },
+                  "key": "flat",
+                  "value": ""
+                },
+                {
+                  "description": {
+                    "content": "Regex over name and description (implies flat mode).",
+                    "type": "text/plain"
+                  },
+                  "key": "search",
+                  "value": ""
+                },
+                {
+                  "description": {
+                    "content": "Page number (implies flat mode).",
+                    "type": "text/plain"
+                  },
+                  "key": "page",
+                  "value": ""
+                },
+                {
+                  "description": {
+                    "content": "Page size (implies flat mode).",
+                    "type": "text/plain"
+                  },
+                  "key": "limit",
+                  "value": ""
+                },
+                {
+                  "description": {
+                    "content": "e.g. `name` or `-createdAt`.",
+                    "type": "text/plain"
+                  },
+                  "key": "sort",
+                  "value": ""
+                }
+              ],
+              "variable": []
+            },
+            "method": "GET",
+            "auth": {
+              "type": "noauth",
+              "noauth": []
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "id": "a08c8072-ab90-4cd9-a228-43a3c378a60e",
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const data = pm.response.json().data;",
+                  "if (Array.isArray(data) && data.length > 0) {",
+                  "    pm.environment.set('category_id', data[0]._id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "42969fb2-912f-4537-bc86-6494bee27643",
+          "name": "Get Category By ID",
+          "request": {
+            "description": {
+              "content": "Fetches one category by its Mongo `_id`.\n\n`🌍 Public`\n\nReturns the raw category document (not wrapped in a `data` key, unlike the list route).\n\n| Status | Cause |\n| --- | --- |\n| `200` | Category document |\n| `404` | `Category not found` |\n| `400` | Malformed ObjectId — `Invalid _id: <value>` |",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "categories",
+                "{{category_id}}"
+              ],
+              "host": [
+                "{{base_url}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "method": "GET",
+            "auth": {
+              "type": "noauth",
+              "noauth": []
+            }
+          },
+          "response": [],
+          "event": []
+        },
+        {
+          "id": "a5a8d2fa-d714-4d5c-8be0-78ce603de005",
+          "name": "Create Category (admin)",
+          "request": {
+            "description": {
+              "content": "Creates a category, optionally with a cover image.\n\n`🔒 Authenticated` · `👑 admin only` · `📎 multipart/form-data`\n\n> Do **not** set `Content-Type` manually — Postman adds the multipart boundary for you.\n\n### Form fields\n\n| Field | Type | Required | Notes |\n| --- | --- | --- | --- |\n| `name` | text | ✅ | Unique |\n| `description` | text | ❌ | |\n| `parentCategory` | text | ❌ | ObjectId of parent; omit or leave blank for a root category |\n| `image` | **file** | ❌ | `image/*` only, ≤ 5 MB. Click *Select Files* in the Body tab. |\n\n### Responses\n\n**201 Created**\n```json\n{\n  \"message\": \"Category created successfully\",\n  \"category\": {\n    \"_id\": \"66f1...\",\n    \"name\": \"Electronics\",\n    \"slug\": \"electronics\",\n    \"image\": \"/uploads/66f1a2b3c4d5e6f7a8b9c0d1.png\",\n    \"parentCategory\": null\n  }\n}\n```\n\n| Status | Cause |\n| --- | --- |\n| `400` | `name already exists` (duplicate `name` or `slug`) |\n| `401` / `403` | Not logged in / not an admin |\n| `500` | `Only image files are allowed`, or file over 5 MB |\n\nThe stored `image` is a **relative** path on purpose — view it at `{{base_url}}/uploads/<filename>`.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "categories"
+              ],
+              "host": [
+                "{{base_url}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "method": "POST",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "description": {
+                    "content": "Required. Unique. Also drives the auto-generated slug.",
+                    "type": "text/plain"
+                  },
+                  "key": "name",
+                  "value": "Electronics",
+                  "type": "text"
+                },
+                {
+                  "description": {
+                    "content": "Optional.",
+                    "type": "text/plain"
+                  },
+                  "key": "description",
+                  "value": "Phones, laptops and accessories",
+                  "type": "text"
+                },
+                {
+                  "disabled": true,
+                  "description": {
+                    "content": "Optional. ObjectId of the parent category — enable this to nest.",
+                    "type": "text/plain"
+                  },
+                  "key": "parentCategory",
+                  "value": "",
+                  "type": "text"
+                },
+                {
+                  "description": {
+                    "content": "Optional. Image file, max 5 MB.",
+                    "type": "text/plain"
+                  },
+                  "key": "image",
+                  "type": "file",
+                  "src": null
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "id": "cf7457cd-17ee-476f-9de3-50ca06e31ef1",
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "if (pm.response.code === 201) {",
+                  "    pm.environment.set('category_id', pm.response.json().category._id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "1076f6ae-fdc4-4060-a8d4-f47c074f2d59",
+          "name": "Update Category (admin)",
+          "request": {
+            "description": {
+              "content": "Partially updates a category.\n\n`🔒 Authenticated` · `👑 admin only` · `📎 multipart/form-data`\n\nAll form fields are optional — send only what changes. Uploading a new `image` replaces the stored path and attempts to delete the old file from disk.\n\n> **Heads-up:** changing `name` through this route does **not** regenerate `slug`, because `findByIdAndUpdate` bypasses the `pre(\"save\")` hook. Send an explicit `slug` field if you need it to match.\n\n| Status | Cause |\n| --- | --- |\n| `200` | `{ \"message\": \"Category updated successfully\", \"category\": { ... } }` |\n| `404` | `Category not found` |\n| `403` | Not an admin |",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "categories",
+                "{{category_id}}"
+              ],
+              "host": [
+                "{{base_url}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "method": "PATCH",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "name",
+                  "value": "Consumer Electronics",
+                  "type": "text"
+                },
+                {
+                  "key": "description",
+                  "value": "Updated description",
+                  "type": "text"
+                },
+                {
+                  "disabled": true,
+                  "description": {
+                    "content": "Enable and pick a file to replace the current image.",
+                    "type": "text/plain"
+                  },
+                  "key": "image",
+                  "type": "file",
+                  "src": null
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": []
+        },
+        {
+          "id": "80fd4fe6-d196-4720-acf6-5b8e54205651",
+          "name": "Delete Category (admin)",
+          "request": {
+            "description": {
+              "content": "Deletes a category.\n\n`🔒 Authenticated` · `👑 admin only`\n\nHard delete. Child categories and products still referencing this id are **not** cleaned up, so their `category` reference will dangle — repoint them first.\n\n| Status | Body |\n| --- | --- |\n| `200` | `{ \"message\": \"Category deleted successfully\" }` |\n| `404` | `Category not found` |",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "categories",
+                "{{category_id}}"
+              ],
+              "host": [
+                "{{base_url}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "method": "DELETE"
+          },
+          "response": [],
+          "event": []
+        }
+      ],
+      "event": []
+    },
+    {
+      "id": "8bb8a8cf-3497-4661-a06f-e51bb84563b2",
+      "name": "Products",
+      "description": {
+        "content": "Product catalogue. Reads are public; writes are admin-only and accept up to 5 images.\n\n| Method | Path | Access |\n| --- | --- | --- |\n| `GET` | `/api/products` | public · supports search/filter/sort/paginate |\n| `GET` | `/api/products/:id` | public |\n| `POST` | `/api/products` | admin · multipart |\n| `PATCH` | `/api/products/:id` | admin · multipart |\n| `DELETE` | `/api/products/:id` | admin |\n\nThe list endpoint runs through the shared `queryService` helper (`src/utils/queryService.js`) and always applies the server-side filter `isActive: true`, so inactive products are never listed.",
+        "type": "text/plain"
+      },
+      "item": [
+        {
+          "id": "461685d7-720a-4e68-a016-98acaab8f2ac",
+          "name": "Get All Products (search, filter, sort, paginate)",
+          "request": {
+            "description": {
+              "content": "Lists active products with full query support.\n\n`🌍 Public`\n\n### Query parameters\n\n| Param | Example | Effect |\n| --- | --- | --- |\n| `page` | `2` | Page number (min `1`, default `1`) |\n| `limit` | `20` | Page size (default `10`, **max `100`**) |\n| `sort` | `-price`, `category,-price` | Multi-field sort; `-` = descending. Default `-createdAt` |\n| `fields` | `name,price` / `-description,-images` | Include or exclude fields |\n| `search` | `laptop` | Case-insensitive regex over `name` and `description` |\n| `<field>` | `category=66f1...` | Exact-match filter on any schema field |\n| `<field>[gte\\|gt\\|lte\\|lt\\|ne]` | `price[gte]=100` | Range / comparison filter |\n| `<field>[in]` | `status[in]=a,b` | `$in` — comma-separated |\n| `<field>[nin]` | `status[nin]=a,b` | `$nin` — comma-separated |\n\nCombine freely: `?search=phone&price[gte]=200&price[lte]=800&sort=price&page=1&limit=5`\n\n### Response — 200 OK\n```json\n{\n  \"message\": \"Products fetched successfully.\",\n  \"data\": [\n    {\n      \"_id\": \"66f2...\",\n      \"name\": \"Gaming Laptop\",\n      \"description\": \"16GB RAM, RTX 4060\",\n      \"price\": 1499.99,\n      \"category\": { \"_id\": \"66f1...\", \"name\": \"Electronics\", \"slug\": \"electronics\" },\n      \"stock\": 12,\n      \"images\": [\"/uploads/66f2a1....png\"],\n      \"sku\": \"LAP-001\",\n      \"isActive\": true,\n      \"createdAt\": \"2026-08-06T10:25:00.000Z\"\n    }\n  ],\n  \"pagination\": {\n    \"total\": 42,\n    \"page\": 1,\n    \"limit\": 10,\n    \"totalPages\": 5,\n    \"hasNextPage\": true,\n    \"hasPrevPage\": false\n  }\n}\n```\n\n### Security notes\n\n- Keys starting with `$` are stripped from filters, so NoSQL operator injection through query params is blocked.\n- Regex metacharacters in `search` are escaped (ReDoS protection).\n- `isActive: true` is forced server-side and cannot be overridden by the client.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "products"
+              ],
+              "host": [
+                "{{base_url}}"
+              ],
+              "query": [
+                {
+                  "description": {
+                    "content": "Page number. Min 1. Default 1.",
+                    "type": "text/plain"
+                  },
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "description": {
+                    "content": "Page size. Default 10, hard cap 100.",
+                    "type": "text/plain"
+                  },
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "description": {
+                    "content": "Comma-separated fields. Prefix with '-' for descending. Default '-createdAt'.",
+                    "type": "text/plain"
+                  },
+                  "key": "sort",
+                  "value": "-createdAt"
+                },
+                {
+                  "disabled": true,
+                  "description": {
+                    "content": "Case-insensitive regex across name and description.",
+                    "type": "text/plain"
+                  },
+                  "key": "search",
+                  "value": "laptop"
+                },
+                {
+                  "disabled": true,
+                  "description": {
+                    "content": "Whitelist fields, or exclude with '-description,-images'.",
+                    "type": "text/plain"
+                  },
+                  "key": "fields",
+                  "value": "name,price,category"
+                },
+                {
+                  "disabled": true,
+                  "description": {
+                    "content": "Exact-match filter on any schema field.",
+                    "type": "text/plain"
+                  },
+                  "key": "category",
+                  "value": "{{category_id}}"
+                },
+                {
+                  "disabled": true,
+                  "description": {
+                    "content": "Range filter — becomes $gte.",
+                    "type": "text/plain"
+                  },
+                  "key": "price[gte]",
+                  "value": "100"
+                },
+                {
+                  "disabled": true,
+                  "description": {
+                    "content": "Range filter — becomes $lte.",
+                    "type": "text/plain"
+                  },
+                  "key": "price[lte]",
+                  "value": "500"
+                },
+                {
+                  "disabled": true,
+                  "description": {
+                    "content": "Only products in stock.",
+                    "type": "text/plain"
+                  },
+                  "key": "stock[gt]",
+                  "value": "0"
+                }
+              ],
+              "variable": []
+            },
+            "method": "GET",
+            "auth": {
+              "type": "noauth",
+              "noauth": []
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "id": "295d505e-1591-497e-8949-a94fa754989c",
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('Response is paginated', function () {",
+                  "    pm.expect(body).to.have.property('pagination');",
+                  "    pm.expect(body.data).to.be.an('array');",
+                  "});",
+                  "",
+                  "if (Array.isArray(body.data) && body.data.length > 0) {",
+                  "    pm.environment.set('product_id', body.data[0]._id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "5a138c12-aa12-44e3-bbda-a349d9dcbd42",
+          "name": "Get Product By ID",
+          "request": {
+            "description": {
+              "content": "Fetches one product with its category populated (`name`, `slug` only).\n\n`🌍 Public`\n\nUnlike the list route, this one **ignores** `isActive`, so an inactive product is still retrievable by direct id.\n\n| Status | Cause |\n| --- | --- |\n| `200` | Product document |\n| `404` | `Product not found` |\n| `400` | Malformed ObjectId — `Invalid _id: <value>` |",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "products",
+                "{{product_id}}"
+              ],
+              "host": [
+                "{{base_url}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "method": "GET",
+            "auth": {
+              "type": "noauth",
+              "noauth": []
+            }
+          },
+          "response": [],
+          "event": []
+        },
+        {
+          "id": "f84e99a7-eeaa-40d3-a0b5-a83dd19fc30e",
+          "name": "Create Product (admin)",
+          "request": {
+            "description": {
+              "content": "Creates a product with up to five images.\n\n`🔒 Authenticated` · `👑 admin only` · `📎 multipart/form-data`\n\n### Form fields\n\n| Field | Type | Required | Notes |\n| --- | --- | --- | --- |\n| `name` | text | ✅ | |\n| `price` | text (number) | ✅ | `>= 0` |\n| `category` | text (ObjectId) | ✅ | Must reference an existing category |\n| `description` | text | ❌ | Indexed for `$text` search alongside `name` |\n| `stock` | text (number) | ❌ | Default `0`, `>= 0` |\n| `sku` | text | ❌ | Unique when present (sparse index) |\n| `isActive` | text (`true`/`false`) | ❌ | Default `true`. `false` hides it from the list route |\n| `images` | **file** | ❌ | **Max 5 files**, `image/*` only, ≤ 5 MB each. Field name must be exactly `images`. |\n\n### Responses\n\n**201 Created**\n```json\n{\n  \"message\": \"Product created successfully\",\n  \"product\": {\n    \"_id\": \"66f2...\",\n    \"name\": \"Gaming Laptop\",\n    \"price\": 1499.99,\n    \"category\": \"66f1...\",\n    \"stock\": 12,\n    \"images\": [\"/uploads/66f2a1....png\", \"/uploads/66f2a2....png\"],\n    \"isActive\": true\n  }\n}\n```\n\n| Status | Cause |\n| --- | --- |\n| `401` / `403` | Not logged in / not an admin |\n| `400` | Validation error (`Price is required`, `Category is required`), non-image file, file > 5 MB, or more than 5 files |",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "products"
+              ],
+              "host": [
+                "{{base_url}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "method": "POST",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "description": {
+                    "content": "Required.",
+                    "type": "text/plain"
+                  },
+                  "key": "name",
+                  "value": "Gaming Laptop",
+                  "type": "text"
+                },
+                {
+                  "key": "description",
+                  "value": "16GB RAM, RTX 4060, 1TB SSD",
+                  "type": "text"
+                },
+                {
+                  "description": {
+                    "content": "Required. Must be >= 0.",
+                    "type": "text/plain"
+                  },
+                  "key": "price",
+                  "value": "1499.99",
+                  "type": "text"
+                },
+                {
+                  "description": {
+                    "content": "Required. Category ObjectId.",
+                    "type": "text/plain"
+                  },
+                  "key": "category",
+                  "value": "{{category_id}}",
+                  "type": "text"
+                },
+                {
+                  "description": {
+                    "content": "Optional. Defaults to 0.",
+                    "type": "text/plain"
+                  },
+                  "key": "stock",
+                  "value": "12",
+                  "type": "text"
+                },
+                {
+                  "description": {
+                    "content": "Optional but unique when present.",
+                    "type": "text/plain"
+                  },
+                  "key": "sku",
+                  "value": "LAP-001",
+                  "type": "text"
+                },
+                {
+                  "description": {
+                    "content": "Optional. Defaults to true.",
+                    "type": "text/plain"
+                  },
+                  "key": "isActive",
+                  "value": "true",
+                  "type": "text"
+                },
+                {
+                  "description": {
+                    "content": "Optional. Up to 5 files — select multiple, or add the key repeatedly.",
+                    "type": "text/plain"
+                  },
+                  "key": "images",
+                  "type": "file",
+                  "src": null
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "id": "82172501-1607-4842-b7d7-9d8cdacf6337",
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "if (pm.response.code === 201) {",
+                  "    pm.environment.set('product_id', pm.response.json().product._id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "d6ebf389-669d-4ef3-86df-34b36df2b41d",
+          "name": "Update Product (admin)",
+          "request": {
+            "description": {
+              "content": "Partially updates a product.\n\n`🔒 Authenticated` · `👑 admin only` · `📎 multipart/form-data`\n\nSend only the fields that change. Set `isActive=false` here as the soft-delete alternative to `DELETE`.\n\n> **Images are replaced, not appended.** Uploading any file overwrites the entire `images` array, and the old files stay on disk. Re-upload every image you want to keep.\n\n| Status | Cause |\n| --- | --- |\n| `200` | `{ \"message\": \"Product updated successfully\", \"product\": { ... } }` |\n| `404` | `Product not found` |\n| `403` | Not an admin |",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "products",
+                "{{product_id}}"
+              ],
+              "host": [
+                "{{base_url}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "method": "PATCH",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "price",
+                  "value": "1299.99",
+                  "type": "text"
+                },
+                {
+                  "key": "stock",
+                  "value": "8",
+                  "type": "text"
+                },
+                {
+                  "disabled": true,
+                  "key": "isActive",
+                  "value": "true",
+                  "type": "text"
+                },
+                {
+                  "disabled": true,
+                  "description": {
+                    "content": "Enable to REPLACE the whole images array.",
+                    "type": "text/plain"
+                  },
+                  "key": "images",
+                  "type": "file",
+                  "src": null
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": []
+        },
+        {
+          "id": "3664be85-5427-4831-825f-94cb5cf6b874",
+          "name": "Delete Product (admin)",
+          "request": {
+            "description": {
+              "content": "Permanently deletes a product.\n\n`🔒 Authenticated` · `👑 admin only`\n\nHard delete — uploaded image files are left on disk, and orders referencing this product will populate as `null`. Prefer `PATCH` with `isActive=false` for catalogue cleanup.\n\n| Status | Body |\n| --- | --- |\n| `200` | `{ \"message\": \"Product deleted successfully\" }` |\n| `404` | `Product not found` |",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "products",
+                "{{product_id}}"
+              ],
+              "host": [
+                "{{base_url}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "method": "DELETE"
+          },
+          "response": [],
+          "event": []
+        }
+      ],
+      "event": []
+    },
+    {
+      "id": "b0911e06-d697-410e-ae6f-63c419d78562",
+      "name": "Orders",
+      "description": {
+        "content": "Customer orders. **Every** route requires a token.\n\n| Method | Path | Access |\n| --- | --- | --- |\n| `GET` | `/api/orders` | authenticated — admin sees all, customer sees own |\n| `GET` | `/api/orders/:id` | authenticated — ownership checked |\n| `POST` | `/api/orders` | authenticated |\n| `PATCH` | `/api/orders/:id` | authenticated — ownership checked |\n| `DELETE` | `/api/orders/:id` | authenticated |\n\n### Status values\n\n| Field | Allowed values | Default |\n| --- | --- | --- |\n| `status` | `pending`, `processing`, `shipped`, `delivered`, `cancelled` | `pending` |\n| `paymentMethod` | `card`, `cod`, `paypal` | `cod` |\n| `paymentStatus` | `pending`, `paid`, `failed`, `refunded` | `pending` |\n\n### Searching\n\n`?search=` works on both sides, but matches different things:\n\n| Caller | `search` matches |\n| --- | --- |\n| admin | customer **name**, customer **email**, or **order id** |\n| customer | **order id** only — every order in the list is already theirs |\n\n**Order id.** Both the full 24-character id and the short form the UI shows (`#77EA296E` — the last 8 characters) work, with or without the `#`, in either case. A full id is matched directly against `_id` (indexed). A fragment is matched with `$expr` + `$toString`, which cannot use an index — fine at this scale, but it is a collection scan, so do not point it at a very large orders collection without adding a stored short-id field.\n\n**Customer name / email.** `name` lives on `User`, not on `Order`, and MongoDB cannot regex across collections in a plain `find`. The controller does it in two steps: find the matching users, then filter orders by `user: { $in: [...] }`.\n\nThe two are OR-ed together for admins, so one box covers both. A customer's search is still AND-ed with their own `user` filter — searching another customer's order id returns nothing, never someone else's order. If nothing matches, the result is an empty list — never the unfiltered one.",
+        "type": "text/plain"
+      },
+      "item": [
+        {
+          "id": "61883979-5d28-4e08-a0ec-2fdccdabe828",
+          "name": "Get All Orders",
+          "request": {
+            "description": {
+              "content": "Lists orders, scoped by role.\n\n`🔒 Authenticated`\n\n- **admin** → every order in the system\n- **customer** → only orders where `user` matches the token's id\n\nReturns a bare array (no pagination wrapper) with `user` populated as `{ name, email }` and each `items.product` as `{ name, price }`.\n\n**200 OK**\n```json\n[\n  {\n    \"_id\": \"66f3...\",\n    \"user\": { \"_id\": \"66f0...\", \"name\": \"Ali Haider\", \"email\": \"customer@example.com\" },\n    \"items\": [\n      { \"product\": { \"_id\": \"66f2...\", \"name\": \"Gaming Laptop\", \"price\": 1499.99 }, \"quantity\": 1, \"price\": 1499.99 }\n    ],\n    \"totalAmount\": 1499.99,\n    \"status\": \"pending\",\n    \"paymentMethod\": \"cod\",\n    \"paymentStatus\": \"pending\",\n    \"shippingAddress\": { \"street\": \"12 Main Street\", \"city\": \"Karachi\", \"country\": \"Pakistan\" },\n    \"createdAt\": \"2026-08-06T10:30:00.000Z\"\n  }\n]\n```",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "orders"
+              ],
+              "host": [
+                "{{base_url}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "method": "GET"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "id": "8fabfabb-9c2a-4090-b7af-67611af661e3",
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "if (Array.isArray(body) && body.length > 0) {",
+                  "    pm.environment.set('order_id', body[0]._id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "6465d287-0e7b-4470-b0e4-d9f5d527c6f0",
+          "name": "Get Order By ID",
+          "request": {
+            "description": {
+              "content": "Fetches one order with `user` and `items.product` populated.\n\n`🔒 Authenticated` — admins can read any order; customers only their own.\n\n| Status | Cause |\n| --- | --- |\n| `200` | Order document |\n| `403` | `Forbidden` — ownership check failed |\n| `404` | `Order not found` |\n\n> **Known issue:** the ownership check compares the *populated* `user` document against the token id, so it never matches for a customer and returns `403` even on their own order. Admins are unaffected. Fix by populating after the check, or by comparing `order.user._id.toString()`.\n\n> The old bug where a customer got `403` on their **own** order is fixed — the ownership check compares `order.user._id`, not the populated document.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "orders",
+                "{{order_id}}"
+              ],
+              "host": [
+                "{{base_url}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "method": "GET"
+          },
+          "response": [],
+          "event": []
+        },
+        {
+          "id": "466d59f1-8dd4-4f3f-921a-3fb702e384d0",
+          "name": "Create Order",
+          "request": {
+            "description": {
+              "content": "Places an order for the logged-in user.\n\n`🔒 Authenticated`\n\n### Body\n\n| Field | Type | Required | Notes |\n| --- | --- | --- | --- |\n| `items` | array | ✅ | At least one entry |\n| `items[].product` | ObjectId | ✅ | |\n| `items[].quantity` | number | ✅ | Min `1` |\n| `items[].price` | number | ✅ | Unit price captured at order time |\n| `totalAmount` | number | ✅ | `>= 0` |\n| `shippingAddress` | object | ❌ | `street`, `city`, `state`, `zip`, `country` |\n| `paymentMethod` | enum | ❌ | `card` \\| `cod` \\| `paypal` — default `cod` |\n| `paymentStatus` | enum | ❌ | Default `pending` |\n| `status` | enum | ❌ | Default `pending` |\n| `user` | ObjectId | ❌ | **Admins only** — place an order on someone's behalf. Ignored for customers, who are always bound to their own token id. |\n\n### Responses\n\n**201 Created**\n```json\n{\n  \"message\": \"Order created successfully\",\n  \"order\": {\n    \"_id\": \"66f3...\",\n    \"user\": \"66f0...\",\n    \"items\": [{ \"product\": \"66f2...\", \"quantity\": 1, \"price\": 1499.99 }],\n    \"totalAmount\": 1499.99,\n    \"status\": \"pending\",\n    \"paymentStatus\": \"pending\",\n    \"paymentMethod\": \"cod\"\n  }\n}\n```\n\n| Status | Cause |\n| --- | --- |\n| `401` | No token |\n| `400` | Validation error — empty `items`, missing `totalAmount`, `quantity < 1`, or an invalid enum value |\n\n> **Note:** `price` and `totalAmount` in the request body are **ignored**. The server reads each product's current price from the database, computes the total itself, and decrements `stock` — so a client cannot order a 1500 item for 1. Send only `product` and `quantity` per item.\n\n| Extra 400 | Cause |\n| --- | --- |\n| `Product not found or unavailable: <id>` | Unknown product, or `isActive: false` |\n| `Only N left in stock for <name>` | Requested quantity exceeds stock |\n| `Invalid quantity for <name>` | Quantity is not a positive integer |",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "orders"
+              ],
+              "host": [
+                "{{base_url}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "method": "POST",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"items\": [\n        {\n            \"product\": \"{{product_id}}\",\n            \"quantity\": 1,\n            \"price\": 1499.99\n        }\n    ],\n    \"totalAmount\": 1499.99,\n    \"shippingAddress\": {\n        \"street\": \"12 Main Street\",\n        \"city\": \"Karachi\",\n        \"state\": \"Sindh\",\n        \"zip\": \"75500\",\n        \"country\": \"Pakistan\"\n    },\n    \"paymentMethod\": \"cod\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "id": "6f97d82a-36fe-4db0-9543-a2dfc87b960f",
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "if (pm.response.code === 201) {",
+                  "    pm.environment.set('order_id', pm.response.json().order._id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "4c07ae7f-1bed-4276-9958-9a67e91cd61f",
+          "name": "Update Order",
+          "request": {
+            "description": {
+              "content": "Partially updates an order.\n\n`🔒 Authenticated` — admins can update any order; customers only their own.\n\n### Field permissions\n\n| Field | admin | customer |\n| --- | --- | --- |\n| `status` | ✅ | 🚫 stripped from the payload |\n| `paymentStatus` | ✅ | 🚫 stripped |\n| `paymentMethod` | ✅ | 🚫 stripped |\n| `shippingAddress` | ✅ | ✅ |\n| `items`, `totalAmount` | ✅ | ✅ |\n\nDisallowed fields are silently removed rather than rejected — a customer sending `status` still gets a `200`, but nothing changes.\n\n### Example (customer-safe body)\n```json\n{\n  \"shippingAddress\": { \"city\": \"Lahore\", \"country\": \"Pakistan\" }\n}\n```\n\n| Status | Cause |\n| --- | --- |\n| `200` | `{ \"message\": \"Order updated successfully\", \"order\": { ... } }` |\n| `403` | `Forbidden` — not the owner and not an admin |\n| `404` | `Order not found` |\n\n### Server-side guards (added with the storefront)\n\n- `items`, `totalAmount` and `user` are stripped from the body — pricing is the server's job.\n- A customer may set `status: \"cancelled\"` on their own order (nothing else); `shipped` and `delivered` orders refuse to cancel with a `400`.\n- Cancelling **restores stock** for every item in the order.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "orders",
+                "{{order_id}}"
+              ],
+              "host": [
+                "{{base_url}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "method": "PATCH",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"status\": \"shipped\",\n    \"paymentStatus\": \"paid\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": []
+        },
+        {
+          "id": "d491a41f-d16f-4b45-b8da-766a50cd72aa",
+          "name": "Delete Order",
+          "request": {
+            "description": {
+              "content": "Permanently deletes an order.\n\n`🔒 Authenticated`\n\n| Status | Body |\n| --- | --- |\n| `200` | `{ \"message\": \"Order deleted successfully\" }` |\n| `404` | `Order not found` |\n\n> **Known issue:** this route performs no ownership or role check — any authenticated user can delete any order by id. Add `authorizeRoles(\"admin\")` or an owner comparison before shipping.\n\n> Ownership is now enforced: a customer deleting someone else's order gets `403`. (This route previously had no check at all.)",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "orders",
+                "{{order_id}}"
+              ],
+              "host": [
+                "{{base_url}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "method": "DELETE"
+          },
+          "response": [],
+          "event": []
+        }
+      ],
+      "event": []
+    },
+    {
+      "id": "61e77ff2-35d5-40f8-b9c6-00cd60e96bdf",
+      "name": "Comments",
+      "description": {
+        "content": "Product comments & reviews. A comment always belongs to **one product** and **one user**.\n\n| Method | Path | Access |\n| --- | --- | --- |\n| `GET` | `/api/comments` | 🌍 public — admin token also reveals hidden comments |\n| `GET` | `/api/comments/:id` | 🌍 public — one comment + its replies |\n| `GET` | `/api/products/:productId/comments` | 🌍 public — threads + rating summary |\n| `POST` | `/api/comments` | 🔒 authenticated |\n| `POST` | `/api/products/:productId/comments` | 🔒 authenticated |\n| `PATCH` | `/api/comments/:id` | 🔒 owner, or admin |\n| `DELETE` | `/api/comments/:id` | 🔒 owner, or admin |\n\n### Schema\n\n| Field | Type | Notes |\n| --- | --- | --- |\n| `product` | ObjectId → `Product` | Required. Product must exist and be `isActive: true` |\n| `user` | ObjectId → `User` | Always taken from the token — a client-supplied `user` is ignored |\n| `text` | string | Required, 2–1000 characters |\n| `rating` | number \\| null | `1`–`5`. `null` = a plain comment that does not affect the average |\n| `parentComment` | ObjectId → `Comment` | `null` = top-level. Set = a reply (**one level deep only**) |\n| `isActive` | boolean | Default `true`. Only an admin can flip it — a hidden comment disappears from public reads and drops out of the average |\n\n### Rules\n\n- A user may leave **many** text-only comments on a product but only **one rating** — change it with `PATCH` instead of posting again.\n- A reply can never carry a rating; one is silently dropped on create, and rejected with `400` on update.\n- **Replying to a reply is allowed and lands in the same thread.** If `parentComment` points at a reply, the server re-parents the new comment to that reply's own parent, so threads are always exactly two levels deep — the Facebook model. The client shows who is being answered by prefixing the text with `@Name`; no error is returned and no deeper nesting is ever created.\n- Deleting a comment also deletes its replies; deleting a product deletes all of its comments.\n\n### Link to Product\n\n`Product` keeps two derived fields, `averageRating` and `numReviews`, which the Comment model recalculates after every create / update / delete. Because they live on the product document you can sort and filter with them directly:\n\n- `GET /api/products?sort=-averageRating`\n- `GET /api/products?averageRating[gte]=4`\n\n`GET /api/products/:id` also returns a `comments` array — the 10 newest visible top-level comments, populated through a virtual (comment ids are **not** stored inside the product document).",
+        "type": "text/plain"
+      },
+      "event": [],
+      "item": [
+        {
+          "id": "64def9bf-bbfe-4007-93a3-5079e4ffc587",
+          "name": "Get All Comments",
+          "request": {
+            "description": {
+              "content": "Flat, paginated list of every comment across all products. Same query engine as products (search / filter / sort / paginate / field-limit).\n\n`🌍 Public` — only `isActive: true` comments. Send an **admin** token to also see hidden ones.\n\n### Useful queries\n\n| Query | Effect |\n| --- | --- |\n| `?product=<id>` | Only that product's comments |\n| `?user=<id>` | Only that user's comments |\n| `?rating[gte]=4` | 4 and 5 star comments |\n| `?rating=null` | Comments with no rating (questions, remarks) |\n| `?parentComment=null` | Top-level only — hides replies |\n| `?search=battery` | Case-insensitive regex over `text` |\n| `?sort=-rating,createdAt` | Highest rated first, then oldest |\n\n### Response — 200 OK\n```json\n{\n  \"message\": \"Comments fetched successfully.\",\n  \"data\": [\n    {\n      \"_id\": \"66f5...\",\n      \"product\": { \"_id\": \"66f2...\", \"name\": \"Gaming Laptop\", \"price\": 1499.99 },\n      \"user\": { \"_id\": \"66f0...\", \"name\": \"Ali\" },\n      \"text\": \"Bohat acha laptop hai, battery timing kamaal.\",\n      \"rating\": 5,\n      \"parentComment\": null,\n      \"isActive\": true,\n      \"createdAt\": \"2026-08-21T08:06:26.979Z\"\n    }\n  ],\n  \"pagination\": { \"total\": 3, \"page\": 1, \"limit\": 10, \"totalPages\": 1, \"hasNextPage\": false, \"hasPrevPage\": false }\n}\n```\n\n> `isActive` is pinned server-side for non-admins, so `?isActive=false` cannot be used to peek at hidden comments.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "comments"
+              ],
+              "host": [
+                "{{base_url}}"
+              ],
+              "query": [
+                {
+                  "description": {
+                    "content": "Page number. Min 1. Default 1.",
+                    "type": "text/plain"
+                  },
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "description": {
+                    "content": "Page size. Default 10, max 100.",
+                    "type": "text/plain"
+                  },
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "description": {
+                    "content": "Multi-field sort; `-` = descending.",
+                    "type": "text/plain"
+                  },
+                  "key": "sort",
+                  "value": "-createdAt"
+                },
+                {
+                  "description": {
+                    "content": "Filter by product ObjectId.",
+                    "type": "text/plain"
+                  },
+                  "key": "product",
+                  "value": ""
+                },
+                {
+                  "description": {
+                    "content": "Only comments rated this or higher.",
+                    "type": "text/plain"
+                  },
+                  "key": "rating[gte]",
+                  "value": ""
+                },
+                {
+                  "description": {
+                    "content": "Regex search over comment text.",
+                    "type": "text/plain"
+                  },
+                  "key": "search",
+                  "value": ""
+                }
+              ],
+              "variable": []
+            },
+            "method": "GET"
+          },
+          "response": [],
+          "event": []
+        },
+        {
+          "id": "b0068a20-a6ac-45b9-a8c6-cea4deb08bda",
+          "name": "Get Product Comments (threads + summary)",
+          "request": {
+            "description": {
+              "content": "One product's comment threads: top-level comments paginated, each with its replies nested, plus a star breakdown.\n\n`🌍 Public`\n\nPagination applies to the **top-level** comments; replies for the returned page are fetched and nested in one extra query. `product`, `parentComment` and `isActive` are pinned server-side and ignored if you pass them.\n\n### Response — 200 OK\n```json\n{\n  \"message\": \"Comments fetched successfully.\",\n  \"product\": { \"_id\": \"66f2...\", \"name\": \"Gaming Laptop\", \"averageRating\": 4.5, \"numReviews\": 2 },\n  \"summary\": { \"average\": 4.5, \"total\": 2, \"breakdown\": { \"1\": 0, \"2\": 0, \"3\": 0, \"4\": 1, \"5\": 1 } },\n  \"data\": [\n    {\n      \"_id\": \"66f5...\",\n      \"user\": { \"_id\": \"66f0...\", \"name\": \"Ali\" },\n      \"text\": \"Bohat acha laptop hai, battery timing kamaal.\",\n      \"rating\": 5,\n      \"parentComment\": null,\n      \"replies\": [\n        { \"_id\": \"66f6...\", \"user\": { \"_id\": \"66ef...\", \"name\": \"Admin\" }, \"text\": \"Shukriya feedback ka!\", \"rating\": null }\n      ]\n    }\n  ],\n  \"pagination\": { \"total\": 3, \"page\": 1, \"limit\": 10, \"totalPages\": 1, \"hasNextPage\": false, \"hasPrevPage\": false }\n}\n```\n\n| Status | Cause |\n| --- | --- |\n| `404` | Product does not exist |\n| `400` | `productId` is not a valid ObjectId |\n\n`summary.average` and `product.averageRating` are computed two different ways (live aggregate vs. stored field) and should always agree — handy when checking that the sync hooks are firing.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "products",
+                "{{product_id}}",
+                "comments"
+              ],
+              "host": [
+                "{{base_url}}"
+              ],
+              "query": [
+                {
+                  "description": {
+                    "content": "Page of top-level comments.",
+                    "type": "text/plain"
+                  },
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "description": {
+                    "content": "Top-level comments per page.",
+                    "type": "text/plain"
+                  },
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "description": {
+                    "content": "Newest first by default.",
+                    "type": "text/plain"
+                  },
+                  "key": "sort",
+                  "value": "-createdAt"
+                },
+                {
+                  "description": {
+                    "content": "Only threads whose top comment is rated this or higher.",
+                    "type": "text/plain"
+                  },
+                  "key": "rating[gte]",
+                  "value": ""
+                },
+                {
+                  "description": {
+                    "content": "Regex search over comment text.",
+                    "type": "text/plain"
+                  },
+                  "key": "search",
+                  "value": ""
+                }
+              ],
+              "variable": []
+            },
+            "method": "GET"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "id": "5decaf82-314e-421f-b4ba-247a9a2032c0",
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "if (pm.response.code === 200) {",
+                  "    const body = pm.response.json();",
+                  "",
+                  "    // Stored field (product) aur live aggregate (summary) match karne chahiyen —",
+                  "    // yani Comment ke rating-sync hooks theek chal rahe hain.",
+                  "    pm.test('averageRating matches the live summary', function () {",
+                  "        pm.expect(body.product.averageRating).to.eql(body.summary.average);",
+                  "        pm.expect(body.product.numReviews).to.eql(body.summary.total);",
+                  "    });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "fb57fbf6-9c0d-411a-bd75-543865edc432",
+          "name": "Get Comment By ID",
+          "request": {
+            "description": {
+              "content": "One comment with `product` and `user` populated, plus its `replies` array.\n\n`🌍 Public` — a hidden (`isActive: false`) comment returns `404` unless an admin token is sent.\n\n| Status | Cause |\n| --- | --- |\n| `404` | No such comment, or it is hidden and you are not an admin |\n| `400` | Malformed ObjectId |",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "comments",
+                "{{comment_id}}"
+              ],
+              "host": [
+                "{{base_url}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "method": "GET"
+          },
+          "response": [],
+          "event": []
+        },
+        {
+          "id": "c4b20697-dfcf-4bac-9028-6cca2e64bd39",
+          "name": "Create Comment / Review",
+          "request": {
+            "description": {
+              "content": "Adds a comment on a product. `user` comes from the token.\n\n`🔒 Authenticated` · `application/json`\n\n### Body\n\n| Field | Type | Required | Notes |\n| --- | --- | --- | --- |\n| `product` | ObjectId | ✅ | Skip it when posting to `/api/products/:productId/comments` |\n| `text` | string | ✅ | 2–1000 characters |\n| `rating` | number | ❌ | `1`–`5`. Omit for a plain comment |\n| `parentComment` | ObjectId | ❌ | Makes this a reply; any `rating` sent with it is dropped. May point at a **reply** — the server then attaches the new comment to that reply's thread rather than nesting deeper |\n\n### Responses\n\n**201 Created**\n```json\n{\n  \"message\": \"Comment created successfully\",\n  \"comment\": {\n    \"_id\": \"66f5...\",\n    \"product\": \"66f2...\",\n    \"user\": { \"_id\": \"66f0...\", \"name\": \"Ali\" },\n    \"text\": \"Bohat acha laptop hai, battery timing kamaal.\",\n    \"rating\": 5,\n    \"parentComment\": null,\n    \"isActive\": true\n  }\n}\n```\n\n| Status | Cause |\n| --- | --- |\n| `401` | No token |\n| `404` | `Product not found` / `Parent comment not found` |\n| `400` | `Comment text is required`, `Comment is too short`, `Rating must be between 1 and 5`, `Product is required` |\n| `400` | `You have already rated this product` — PATCH your existing review instead |\n| `400` | `Cannot comment on an inactive product` |\n| `400` | `Parent comment belongs to a different product` |\n\nThe product's `averageRating` / `numReviews` update automatically via the model's post-save hook.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "comments"
+              ],
+              "host": [
+                "{{base_url}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "method": "POST",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"product\": \"{{product_id}}\",\n  \"text\": \"Bohat acha laptop hai, battery timing kamaal.\",\n  \"rating\": 5\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "id": "61154ce7-48b6-4369-a829-f65aa2ea67b7",
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "if (pm.response.code === 201) {",
+                  "    // Reply / Update / Delete requests isi id ko use karte hain.",
+                  "    pm.environment.set('comment_id', pm.response.json().comment._id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "d944eee8-54fc-4b12-9932-3e5b8dbc3ce6",
+          "name": "Reply To A Comment",
+          "request": {
+            "description": {
+              "content": "A reply is just a comment with `parentComment` set — same route, same handler.\n\n`🔒 Authenticated` · `application/json`\n\nTypical use: the admin answering a customer question under their comment. Replies never carry a rating, so they cannot move the product average. Only top-level comments can be replied to (`400` otherwise).",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "comments"
+              ],
+              "host": [
+                "{{base_url}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "method": "POST",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"product\": \"{{product_id}}\",\n  \"parentComment\": \"{{comment_id}}\",\n  \"text\": \"Shukriya feedback ka! Warranty 1 saal ki hai.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": []
+        },
+        {
+          "id": "dd116eec-ea07-400e-bb2e-c3786926e5db",
+          "name": "Create Comment (nested product route)",
+          "request": {
+            "description": {
+              "content": "Same handler as **Create Comment**, with the product taken from the URL instead of the body — convenient for a product detail page.\n\n`🔒 Authenticated` · `application/json`\n\n`product` in the body is ignored here; the `:productId` path segment wins.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "products",
+                "{{product_id}}",
+                "comments"
+              ],
+              "host": [
+                "{{base_url}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "method": "POST",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"Packing achi thi, delivery time par mili.\",\n  \"rating\": 4\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "id": "27fc56cc-9978-4cc8-97ab-0f140ec2a67f",
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "63b27696-0ccc-4877-8110-92b3222ac9a4",
+          "name": "Update Comment",
+          "request": {
+            "description": {
+              "content": "Edits a comment. Owner or admin only.\n\n`🔒 Authenticated`\n\n### Body — all fields optional\n\n| Field | Who | Notes |\n| --- | --- | --- |\n| `text` | owner / admin | 2–1000 characters |\n| `rating` | owner / admin | `1`–`5`, or `null` to drop the rating. Rejected on a reply |\n| `isActive` | **admin only** | `false` hides the comment and removes it from the average; `true` restores it |\n\n| Status | Cause |\n| --- | --- |\n| `403` | `Forbidden` — not the owner and not an admin |\n| `403` | `Forbidden: only admin can hide or restore comments` |\n| `400` | `A reply cannot have a rating` |\n| `400` | `You have already rated this product` — adding a rating when another rated review by the same user already exists |\n| `404` | No such comment |\n\nSaved with `document.save()`, so the rating-sync hook runs and the product's `averageRating` follows along.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "comments",
+                "{{comment_id}}"
+              ],
+              "host": [
+                "{{base_url}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "method": "PATCH",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"Update: fan thora awaz karta hai.\",\n  \"rating\": 3\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": []
+        },
+        {
+          "id": "0ec0279a-d79e-4d71-856c-719c3f158f9c",
+          "name": "Moderate Comment (admin — hide/restore)",
+          "request": {
+            "description": {
+              "content": "Soft-delete for moderation: keeps the row, hides it from public reads and excludes it from `averageRating` / `numReviews`.\n\n`🔒 Authenticated` · `👑 admin only`\n\nSend `{\"isActive\": true}` to restore. A customer sending `isActive` gets `403`.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "comments",
+                "{{comment_id}}"
+              ],
+              "host": [
+                "{{base_url}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "method": "PATCH",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"isActive\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": []
+        },
+        {
+          "id": "997531f6-73e6-451e-bbad-9e5afb458548",
+          "name": "Delete Comment",
+          "request": {
+            "description": {
+              "content": "Hard-deletes a comment **and all of its replies**. Owner or admin.\n\n`🔒 Authenticated`\n\n### Response — 200 OK\n```json\n{ \"message\": \"Comment deleted successfully\", \"deletedCount\": 2 }\n```\n\n`deletedCount` = the comment plus the replies that went with it.\n\n| Status | Cause |\n| --- | --- |\n| `403` | Not the owner and not an admin |\n| `404` | No such comment |\n\nPrefer **Moderate Comment** when you want the comment kept for the record.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "comments",
+                "{{comment_id}}"
+              ],
+              "host": [
+                "{{base_url}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "method": "DELETE"
+          },
+          "response": [],
+          "event": []
+        }
+      ]
+    },
+    {
+      "id": "8380987b-8b1f-49db-95ef-cbd04fae37f5",
+      "name": "Notifications",
+      "description": {
+        "content": "Persistent notifications for the logged-in user — customer **or** admin — backing the bell in both portals.\n\n| Method | Path | Access |\n| --- | --- | --- |\n| `GET` | `/api/notifications` | 🔒 authenticated |\n| `PATCH` | `/api/notifications/:id/read` | 🔒 authenticated |\n| `PATCH` | `/api/notifications/read-all` | 🔒 authenticated |\n\n### Why they are stored at all\n\nSocket.IO only reaches clients that are connected *right now*. A customer who was offline when a product was added, or an admin who closed the portal overnight, would never learn about it — and every notification would vanish on refresh. So each notification is written to MongoDB first and emitted second: the socket is the live copy, the database is the record.\n\n### One document, many readers\n\nA broadcast to 10,000 customers must not write 10,000 rows:\n\n| `user` | `audience` | Who sees it | Examples |\n| --- | --- | --- | --- |\n| an ObjectId | (ignored) | just that user | `order:status`, the customer's `order:payment` |\n| `null` | `all` | every customer | `product:new` |\n| `null` | `admins` | every admin | `order:new`, the admin's `order:payment` |\n\n`audience` is only consulted when `user` is `null`, so documents written before the field existed still behave correctly.\n\n`GET` filters by the caller's **role**: an admin gets `audience: \"admins\"`, everyone else gets `\"all\"` — plus their own targeted ones either way. So a customer never sees \"New order #ABC\" and an admin never sees \"New product added\" (they created it).\n\n`readBy` tracks who has read each row and is never sent to the client (it holds other users' ids); the response carries a computed `read` boolean instead. One admin marking a new-order notification read does not clear it for the other admins.\n\n`order:payment` deliberately writes **two** records — customer and admins — because the wording and the link differ (`/orders/:id` vs `/orders?order=:id`, which opens the drawer in the admin table).\n\nGuests get live toasts but no records: notifications belong to a user.",
+        "type": "text/plain"
+      },
+      "event": [],
+      "item": [
+        {
+          "id": "bc6bbe54-5484-41c3-a862-12ff26a79710",
+          "name": "Get Notifications",
+          "response": [],
+          "event": [],
+          "request": {
+            "description": {
+              "content": "Your notifications plus broadcasts, newest first, with an unread count so the bell badge needs only this one request.\n\n`🔒 Authenticated`\n\n### Response — 200 OK\n```json\n{\n  \"message\": \"Notifications fetched successfully.\",\n  \"data\": [\n    {\n      \"_id\": \"66f9...\",\n      \"type\": \"order:status\",\n      \"title\": \"Order #871E0D90 has shipped\",\n      \"body\": \"Order total 24999\",\n      \"link\": \"/orders/66f8...\",\n      \"read\": false,\n      \"createdAt\": \"2026-08-23T09:12:00.000Z\"\n    }\n  ],\n  \"unread\": 1\n}\n```\n\n`?limit=` caps the list (default 20, max 50). `type` is one of `product:new`, `order:status`, `order:payment` — the storefront picks the icon from it, and `link` is where clicking it goes.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "notifications"
+              ],
+              "host": [
+                "{{base_url}}"
+              ],
+              "query": [
+                {
+                  "description": {
+                    "content": "Default 20, max 50.",
+                    "type": "text/plain"
+                  },
+                  "key": "limit",
+                  "value": "20"
+                }
+              ],
+              "variable": []
+            },
+            "method": "GET"
+          }
+        },
+        {
+          "id": "d9f88fb2-2206-425f-a534-eaa04b20b7b0",
+          "name": "Mark One As Read",
+          "response": [],
+          "event": [],
+          "request": {
+            "description": {
+              "content": "Adds your id to that notification's `readBy`.\n\n`🔒 Authenticated`\n\nUses `$addToSet`, so calling it twice is harmless — no duplicate ids, no error. Marking a **broadcast** read only affects you; everyone else's unread count is untouched.\n\n| Status | Cause |\n| --- | --- |\n| `404` | No such notification, or it belongs to another user |\n| `400` | Malformed ObjectId |\n\nThe storefront applies this optimistically and rolls back if the request fails, so the badge drops the moment you click.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "notifications",
+                "{{notification_id}}",
+                "read"
+              ],
+              "host": [
+                "{{base_url}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "method": "PATCH"
+          }
+        },
+        {
+          "id": "48892879-bd84-4feb-bca0-fff8d06f418c",
+          "name": "Mark All As Read",
+          "response": [],
+          "event": [],
+          "request": {
+            "description": {
+              "content": "Marks everything you can see as read.\n\n`🔒 Authenticated`\n\n```json\n{ \"message\": \"All notifications marked as read\", \"modifiedCount\": 3 }\n```\n\nThe update filters on `readBy: { $ne: <you> }`, so it only writes documents that actually change — calling it twice returns `modifiedCount: 0`.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "notifications",
+                "read-all"
+              ],
+              "host": [
+                "{{base_url}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "method": "PATCH"
+          }
+        }
+      ]
+    },
+    {
+      "id": "64042ea4-96f2-4ae8-b800-c07e65338210",
+      "name": "Stats",
+      "description": {
+        "content": "Admin dashboard numbers. One request, every figure computed by aggregation — no collection is ever pulled into memory.\n\n| Method | Path | Access |\n| --- | --- | --- |\n| `GET` | `/api/stats/overview` | 🔒 authenticated · 👑 admin only |\n\nCancelled orders are excluded from every revenue and sales figure.",
+        "type": "text/plain"
+      },
+      "event": [],
+      "item": [
+        {
+          "id": "fc58199e-4c41-48c9-8c5d-c0655dfdd3ee",
+          "name": "Dashboard Overview (admin)",
+          "request": {
+            "description": {
+              "content": "Everything the admin dashboard needs.\n\n`🔒 Authenticated` · `👑 admin only`\n\n### Response — 200 OK\n```json\n{\n  \"message\": \"Stats fetched successfully.\",\n  \"totals\": {\n    \"users\": 11, \"products\": 240, \"orders\": 20, \"comments\": 110,\n    \"revenue\": 58095.14, \"pendingRevenue\": 45321.37, \"paidOrders\": 11\n  },\n  \"ordersByStatus\": { \"pending\": 4, \"processing\": 1, \"shipped\": 6, \"delivered\": 5, \"cancelled\": 4 },\n  \"salesByDay\": [ { \"date\": \"2026-08-21\", \"revenue\": 103416.51, \"orders\": 16 } ],\n  \"topProducts\": [ { \"_id\": \"66f2...\", \"unitsSold\": 6, \"revenue\": 4732.2, \"name\": \"Oriental Wooden Chips\", \"price\": 788.7, \"images\": [\"...\"] } ],\n  \"lowStockProducts\": [ { \"_id\": \"66f2...\", \"name\": \"Rustic Cotton Sausages\", \"stock\": 2, \"price\": 1247.45 } ],\n  \"recentOrders\": [ { \"_id\": \"66f3...\", \"totalAmount\": 1200, \"status\": \"pending\", \"paymentStatus\": \"pending\", \"createdAt\": \"...\", \"user\": { \"name\": \"Ali\", \"email\": \"ali@example.com\" } } ]\n}\n```\n\n| Field | Meaning |\n| --- | --- |\n| `totals.revenue` | Sum of non-cancelled orders whose `paymentStatus` is `paid` |\n| `totals.pendingRevenue` | Same, for `paymentStatus: pending` — money not collected yet |\n| `ordersByStatus` | All five statuses always present, zero-filled |\n| `salesByDay` | Last **7 days**, one row per day that had orders, ascending |\n| `topProducts` | Top 5 by units sold; a deleted product shows as `(deleted product)` |\n| `lowStockProducts` | Active products with `stock <= 5`, lowest first, max 5 |\n\n| Status | Cause |\n| --- | --- |\n| `401` | Not logged in |\n| `403` | Logged in but not an admin |",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "stats",
+                "overview"
+              ],
+              "host": [
+                "{{base_url}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "method": "GET"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "id": "66c861fd-d3eb-40ae-8d22-61c6c52afe4a",
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "if (pm.response.code === 200) {",
+                  "    const body = pm.response.json();",
+                  "    pm.test('All five order statuses are present', function () {",
+                  "        pm.expect(Object.keys(body.ordersByStatus)).to.have.lengthOf(5);",
+                  "    });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "dbe79ea6-ba40-4396-98d5-a3197653e041",
+      "name": "Payments (Stripe)",
+      "description": {
+        "content": "Card payments through **Stripe Checkout** (Stripe's hosted page).\n\n| Method | Path | Access |\n| --- | --- | --- |\n| `GET` | `/api/payments/config` | 🌍 public |\n| `POST` | `/api/payments/checkout-session` | 🔒 authenticated |\n| `POST` | `/api/payments/webhook` | Stripe only (signature verified) |\n\n### How the flow hangs together\n\n1. Customer checks out with `paymentMethod: \"card\"` → the order is created normally, `paymentStatus: \"pending\"`.\n2. Frontend calls **Create Checkout Session** and redirects the browser to the returned `url`.\n3. Customer pays on Stripe's page. Card details never touch this server.\n4. Stripe redirects back to `${FRONTEND_URL}/orders/:id?payment=success` (or `?payment=cancelled`).\n5. Stripe calls the **webhook**, and *that* is what marks the order paid — never the success URL, which a customer could open by hand.\n\n### Local testing\n\n```bash\nstripe login\nstripe listen --forward-to localhost:5000/api/payments/webhook\n# copy the printed whsec_... into STRIPE_WEBHOOK_SECRET, restart the backend\nstripe trigger checkout.session.completed\n```\n\nWithout `STRIPE_SECRET_KEY` the whole feature stays switched off: `config` reports `cardPaymentsEnabled: false`, the other two routes answer `503`, and the storefront disables its Card option.",
+        "type": "text/plain"
+      },
+      "event": [],
+      "item": [
+        {
+          "id": "528f967e-2036-4df9-b0ff-8a2581015969",
+          "name": "Payment Config",
+          "request": {
+            "description": {
+              "content": "Tells the frontend whether card payments can be offered, and hands it the Stripe publishable key.\n\n`🌍 Public`\n\n```json\n{ \"cardPaymentsEnabled\": true, \"publishableKey\": \"pk_test_...\", \"currency\": \"pkr\" }\n```\n\n`cardPaymentsEnabled` is simply \"is `STRIPE_SECRET_KEY` set on the server\". The storefront greys out its Card option when this is `false`.\n\nThe publishable key is served from here rather than baked into the frontend's own `.env`: both keys then live in one place (`backend/.env`), and rotating them needs no frontend rebuild. It is public by design — the secret key never leaves the server.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "payments",
+                "config"
+              ],
+              "host": [
+                "{{base_url}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "method": "GET"
+          },
+          "response": [],
+          "event": []
+        },
+        {
+          "id": "39fba516-135b-4308-9d5c-d37c45e123b2",
+          "name": "Create Payment Intent",
+          "response": [],
+          "event": [],
+          "request": {
+            "description": {
+              "content": "Creates (or re-uses) a Stripe PaymentIntent for an order and returns its `clientSecret`. This is what the storefront's in-page card form uses.\n\n`🔒 Authenticated` — the order's owner, or an admin.\n\n### Body\n| Field | Type | Required |\n| --- | --- | --- |\n| `orderId` | ObjectId | ✅ |\n\n### Response — 200 OK\n```json\n{\n  \"message\": \"Payment intent created\",\n  \"clientSecret\": \"pi_3ABC..._secret_XYZ\",\n  \"amount\": 2499900,\n  \"currency\": \"pkr\"\n}\n```\n\n`amount` is in the smallest unit (paisa) and is computed from the **stored order** — the client cannot influence what is charged.\n\n**Re-used, not recreated.** If the order already has an intent that is still payable, it is retrieved (and its amount updated if needed) instead of creating a new one, so refreshing the page does not litter the Stripe dashboard with abandoned intents.\n\n| Status | Cause |\n| --- | --- |\n| `400` | `orderId is required`, `This order is already paid`, `This order was cancelled` |\n| `403` | Someone else's order |\n| `409` | The order's existing intent is already `succeeded`/`processing` — the payment is in flight and the webhook has not landed. Creating another intent here could double-charge, so it is refused |\n| `404` | No such order |\n| `502` | Stripe rejected the call — the real reason is in the server log |\n| `503` | `STRIPE_SECRET_KEY` is not set |\n\nHand `clientSecret` to `<Elements>` on the client; the order is still only marked paid by the webhook.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "payments",
+                "payment-intent"
+              ],
+              "host": [
+                "{{base_url}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "method": "POST",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderId\": \"{{order_id}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "id": "4758044c-d69c-4b4f-9146-c5112cc25bee",
+          "name": "Sync Payment Status",
+          "response": [],
+          "event": [],
+          "request": {
+            "description": {
+              "content": "Asks Stripe directly whether the order's PaymentIntent succeeded, and updates the order to match.\n\n`🔒 Authenticated` — the order's owner, or an admin.\n\n### Why this exists\n\nThe webhook is the source of truth, but it needs `stripe listen` locally and can lag in production — leaving a customer who just paid staring at `pending`. The storefront calls this immediately after `confirmPayment()` succeeds, so the order flips to paid at once.\n\nIt is **not** a way for the client to declare a payment done: the only thing the client supplies is the order id. The server fetches the PaymentIntent from Stripe and updates the order only when\n\n- `intent.status === \"succeeded\"`, **and**\n- `intent.amount_received` equals the order total in the smallest currency unit\n\nBoth this route and the webhook call the same `markOrderPaid()` helper, so they can never drift apart, and both are idempotent — an order that is already paid emits no second notification.\n\n### Responses\n\n```json\n{ \"message\": \"Payment confirmed\", \"order\": { \"status\": \"processing\", \"paymentStatus\": \"paid\" }, \"updated\": true }\n```\n\n| `message` | Meaning |\n| --- | --- |\n| `Payment confirmed` | Stripe said succeeded and the amount matched — order updated |\n| `Payment already confirmed` | The webhook got there first; nothing to do |\n| `Payment is still processing` | Stripe has not settled it yet |\n| `Payment has not completed yet` | Any other intent status (returned with `paymentIntentStatus`) |\n\n| Status | Cause |\n| --- | --- |\n| `400` | No payment has been started for this order |\n| `403` | Someone else's order |\n| `404` | No such order |\n| `502` | Stripe lookup failed — real reason in the server log |\n| `503` | `STRIPE_SECRET_KEY` is not set |",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "payments",
+                "sync",
+                "{{order_id}}"
+              ],
+              "host": [
+                "{{base_url}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "method": "POST"
+          }
+        },
+        {
+          "id": "7771fa3e-212c-44a6-aff8-69933bf580df",
+          "name": "Create Checkout Session",
+          "request": {
+            "description": {
+              "content": "Creates a Stripe Checkout session for an existing order and returns its URL.\n\n`🔒 Authenticated` — the order's owner, or an admin.\n\n### Body\n| Field | Type | Required |\n| --- | --- | --- |\n| `orderId` | ObjectId | ✅ |\n\n### Response — 200 OK\n```json\n{\n  \"message\": \"Checkout session created\",\n  \"url\": \"https://checkout.stripe.com/c/pay/cs_test_...\",\n  \"sessionId\": \"cs_test_...\"\n}\n```\n\nRedirect the browser to `url` (a full page navigation, not a client-side route).\n\n| Status | Cause |\n| --- | --- |\n| `400` | `orderId is required`, `This order is already paid`, `This order was cancelled` |\n| `401` | Not logged in |\n| `403` | Someone else's order |\n| `404` | No such order |\n| `502` | Stripe rejected the request — the real reason is in the server log, the client gets a generic message on purpose (Stripe's own errors mention the API key) |\n| `503` | `STRIPE_SECRET_KEY` is not set |\n\nLine items are built from the **stored order**, whose prices came from the product catalogue — the client cannot influence the amount charged.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "payments",
+                "checkout-session"
+              ],
+              "host": [
+                "{{base_url}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "method": "POST",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderId\": \"{{order_id}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": []
+        },
+        {
+          "id": "45a33587-c2e1-426e-b242-c6064ea1ddef",
+          "name": "Stripe Webhook (reference only)",
+          "request": {
+            "description": {
+              "content": "**Do not send this from Postman** — it will fail signature verification. It is documented here so the contract is visible; use the Stripe CLI to exercise it.\n\n`Stripe only` · mounted **before** `express.json()` with `express.raw()`, and outside the rate limiter.\n\n### Why raw body\nStripe signs the exact bytes it sent. `express.json()` would parse them into an object and `xss()` would sanitize them — either one breaks the signature. So this one route is registered ahead of both, in `server.js`.\n\n### Events handled\n| Event | Effect |\n| --- | --- |\n| `checkout.session.completed` | `paymentStatus → paid`; a `pending` order also moves to `processing`; emits `order:payment` (customer + admins) and `order:status` (customer) |\n| `checkout.session.expired` | `paymentStatus → failed` (only if still `pending`) |\n| `payment_intent.payment_failed` | same as above |\n\nThe order id comes from `metadata.orderId` (falling back to `client_reference_id`), both set when the session was created.\n\n### Responses\n| Status | Cause |\n| --- | --- |\n| `200` | `{ \"received\": true }` — including for events we ignore, and for an order that no longer exists (otherwise Stripe retries forever) |\n| `400` | Signature verification failed |\n| `503` | `STRIPE_SECRET_KEY` or `STRIPE_WEBHOOK_SECRET` missing |\n\nReplays are safe: an order already marked `paid` is left alone.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "api",
+                "payments",
+                "webhook"
+              ],
+              "host": [
+                "{{base_url}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "method": "POST",
+            "body": {
+              "mode": "raw",
+              "raw": "<< Stripe sends the raw event body and a stripe-signature header >>",
+              "options": {
+                "raw": {
+                  "language": "text"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": []
+        }
+      ]
+    },
+    {
+      "id": "1f8567e5-64c1-4989-9daf-31e2e2450ea1",
+      "name": "Static Files",
+      "description": {
+        "content": "Uploaded images are served straight from disk by `express.static`.",
+        "type": "text/plain"
+      },
+      "item": [
+        {
+          "id": "5adb4816-5527-4bf5-a0c5-087c29e8e8e6",
+          "name": "Get Uploaded Image",
+          "request": {
+            "description": {
+              "content": "Serves a file from `backend/uploads/`.\n\n`🌍 Public` — no auth, no rate-limit exemption.\n\nCategory and product records store a relative path like `/uploads/66f1a2b3c4d5e6f7a8b9c0d1.png`. Prefix it with `{{base_url}}` to get a usable URL.\n\nSet `uploaded_file_name` in the environment to the filename portion (for example `66f1a2b3c4d5e6f7a8b9c0d1.png`).\n\n| Status | Cause |\n| --- | --- |\n| `200` | Binary image response |\n| `404` | File not found on disk |\n\nFilenames are generated as a fresh Mongo ObjectId plus the original extension, so uploads never collide or leak the original filename.",
+              "type": "text/plain"
+            },
+            "url": {
+              "path": [
+                "uploads",
+                "{{uploaded_file_name}}"
+              ],
+              "host": [
+                "{{base_url}}"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "method": "GET",
+            "auth": {
+              "type": "noauth",
+              "noauth": []
+            }
+          },
+          "response": [],
+          "event": []
+        }
+      ],
+      "event": []
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "type": "string",
+        "value": "{{token}}",
+        "key": "token"
+      }
+    ]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "id": "0540a7c2-440a-40d8-816c-3111c1e007a8",
+        "type": "text/javascript",
+        "exec": [
+          "// Fail fast with a readable message when no environment is selected.",
+          "if (!pm.environment.name) {",
+          "    console.warn('No environment selected. Pick \"bano-qabil-local\" so {{base_url}} and {{token}} resolve.');",
+          "}"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "id": "80812fae-b56f-4a03-8376-b352aa4666b1",
+        "type": "text/javascript",
+        "exec": [
+          "// Shared assertions that apply to every request in the collection.",
+          "pm.test('Response time is under 2000ms', function () {",
+          "    pm.expect(pm.response.responseTime).to.be.below(2000);",
+          "});",
+          "",
+          "pm.test('Not rate limited', function () {",
+          "    pm.expect(pm.response.code).to.not.eql(429);",
+          "});"
+        ]
+      }
+    }
+  ],
+  "variable": [],
+  "info": {
+    "_postman_id": "f3173087-3aad-44f8-b4a0-a6c24f55b744",
+    "name": "bano-qabil-backend",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": {
+      "content": "# Bano Qabil 5.0 — E-Commerce Backend API\n\nREST API for the MERN e-commerce project (Express 5 + Mongoose + JWT).\n\n---\n\n## Base URL\n\nAll requests use the `{{base_url}}` environment variable.\n\n| Environment | Value |\n| --- | --- |\n| Local | `http://localhost:5000` |\n\nThe port comes from `PORT` in `backend/.env` (defaults to `3000` if unset).\n\n## Authentication\n\nThe API uses a **JWT in an httpOnly cookie**.\n\n1. Call **Auth → Login**. The response body contains **no token** — the JWT arrives as `Set-Cookie: token=<jwt>; HttpOnly`. Postman keeps it in its cookie jar and replays it on every later request.\n2. Call **Auth → Logout** to clear it.\n\n`authenticate` reads the token from the `token` cookie first, and falls back to an `Authorization: Bearer <jwt>` header — so mobile apps, server-to-server calls and the collection-level bearer auth all keep working.\n\nToken payload: `{ id, email, role }` · Expiry: **7 days** · Signed with `JWT_SECRET`.\n\nWhy a cookie: `httpOnly` means page JavaScript cannot read the token, so an XSS bug cannot walk off with the session the way it can with `localStorage`. The trade-off is CSRF exposure — mitigated here by `SameSite=Lax` (`None` + `secure` in production) and a CORS allow-list of exact origins.\n\n## Query engine on list routes\n\n`GET /api/products`, `/api/orders`, `/api/comments`, `/api/users` and `/api/categories?flat=true` all run through one shared helper, so they take the same parameters:\n\n| Param | Example | Effect |\n| --- | --- | --- |\n| `page` / `limit` | `?page=2&limit=20` | Pagination — default `10`, max `100` |\n| `pagination` | `?pagination=false` | Return the **whole** result set, no paging. The response shape does not change: `pagination.paginated` is `false`, and `page`/`limit` describe the full set |\n| `sort` | `?sort=-createdAt,name` | Multi-field sort, `-` = descending |\n| `fields` | `?fields=name,price` | Include, or `?fields=-description` to exclude |\n| `search` | `?search=laptop` | Case-insensitive regex over that route's search fields |\n| `<field>` | `?role=admin` | Equality filter |\n| `<field>[gte\\|gt\\|lte\\|lt\\|ne]` | `?price[gte]=100` | Comparison |\n| `<field>[in\\|nin]` | `?status[in]=pending,paid` | Comma-separated list |\n\nEvery one of them answers with the same envelope:\n\n```json\n{ \"message\": \"...\", \"data\": [ ... ], \"pagination\": { \"total\": 42, \"page\": 1, \"limit\": 10, \"totalPages\": 5, \"hasNextPage\": true, \"hasPrevPage\": false } }\n```\n\n## Roles\n\n| Role | Capabilities |\n| --- | --- |\n| `customer` | Own profile, own orders, read products & categories |\n| `admin` | Everything, plus user management and product/category writes |\n\n## Standard error responses\n\n| Status | Meaning |\n| --- | --- |\n| `400` | Validation failure / duplicate record |\n| `401` | Missing, malformed or expired token |\n| `403` | Authenticated but role or ownership check failed |\n| `404` | Resource not found |\n| `429` | Rate limit exceeded |\n| `500` | Unhandled server error |\n\nError body is always: `{ \"message\": \"...\" }`\n\n## Rate limiting\n\n**100 requests per 15 minutes per IP**, applied globally. Responses include the standard `RateLimit-*` headers. Exceeding it returns `429` with the plain-text body `Too many requests from this IP, please try again later.`\n\n## File uploads\n\nImage uploads use `multipart/form-data` through Multer.\n\n- Images only (`image/*` mimetype), max **5 MB** per file\n- Saved to `backend/uploads/`, stored in Mongo as a relative path such as `/uploads/68f3...c1.png`\n- Served publicly at `{{base_url}}/uploads/<filename>`\n\n## Comments & ratings\n\n`Comment` links a **product** and a **user**, and refers to itself through `parentComment` for one-level-deep replies. Every create / update / delete recalculates the product's `averageRating` and `numReviews`, so product listings can sort and filter on rating without touching the comments collection.\n\nSee the **Comments** folder for the full contract.\n\n## Realtime events (Socket.IO)\n\nThe API also runs a Socket.IO server on the **same port**. Clients connect with credentials (`withCredentials: true`) and the server reads the same auth cookie from the handshake, then puts the socket into rooms:\n\n| Room | Who | Events |\n| --- | --- | --- |\n| `everyone` | every client, guests included | `product:new` |\n| `user:<id>` | one customer | `order:status`, `order:payment` |\n| `admins` | all logged-in admins | `order:new`, `order:payment` |\n\nEmitted from `product.controller` (create), `order.controller` (create, status change) and `payment.controller` (webhook). A status change only fires when the status actually changed — editing an address does not notify the customer.\n\n## Quick start\n\n1. Select the **bano-qabil-local** environment (top-right of Postman).\n2. Start the server: `npm run dev` inside `backend/`.\n3. Run **Auth → Register (Admin)**, then **Auth → Login** — the token is captured automatically.\n4. Everything else is ready to send.\n\n## Error contract\n\nEvery error response — including 404s for unknown routes — is produced by one central handler and always has this shape:\n\n```json\n{ \"message\": \"...\" }\n```\n\n| Cause | Status |\n| --- | --- |\n| Malformed ObjectId (`CastError`) | `400` — `Invalid _id: <value>` |\n| Schema validation failure | `400` — all failing fields, comma-separated |\n| Duplicate unique field | `400` — `<field> already exists` |\n| Malformed JSON body | `400` — `Invalid JSON body` |\n| Missing/invalid/expired JWT | `401` |\n| Role or ownership check | `403` |\n| Unknown route | `404` — `Route not found - <METHOD> <path>` |\n| Unhandled bug | `500` — generic message in production |",
+      "type": "text/plain"
+    }
+  }
+}

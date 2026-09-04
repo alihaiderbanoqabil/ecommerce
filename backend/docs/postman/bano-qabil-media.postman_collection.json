@@ -1,0 +1,168 @@
+{
+  "info": {
+    "name": "Bano Qabil Media API",
+    "_postman_id": "bcc4872f-f78d-49b7-a722-19d818c1a514",
+    "description": "# Media Upload API (Cloudinary)\n\nA **separate** collection for the `/api/media` routes — file upload, replace and delete backed by Cloudinary. Kept apart from the main `bano-qabil-backend` collection so it can be imported on its own.\n\n---\n\n## Requires the shared environment\n\nThis collection uses the same `{{base_url}}` and `{{token}}` variables as the main collection. Select the **bano-qabil-local** environment (top-right in Postman) before sending anything here.\n\nNo login request lives in this collection — auth is centralized in **bano-qabil-backend → Auth → Login**, whose test script writes `{{token}}` automatically. Run that once, then come back here.\n\n## Base URL\n\n| Environment | Value |\n| --- | --- |\n| Local | `http://localhost:5000` |\n\n## Authentication\n\n**Every route in this collection requires a valid JWT.** Unlike the product/category image uploads in the main collection, media routes are **not** admin-restricted — any authenticated user (customer or admin) can upload, replace, or delete.\n\n## Storage backend\n\nFiles go straight to **Cloudinary** via `multer-storage-cloudinary` — nothing is saved to local disk. Each upload creates a `Media` document in MongoDB:\n\n```json\n{ \"_id\": \"...\", \"url\": \"https://res.cloudinary.com/...\", \"publicId\": \"my_app_uploads/...\", \"uploadedBy\": \"<user id>\" }\n```\n\n| Constraint | Value |\n| --- | --- |\n| Max file size | **10 MB** |\n| Allowed formats | `jpg`, `png`, `jpeg`, `webp`, `mp4` |\n| Cloudinary folder | `my_app_uploads` |\n| `resource_type` | `auto` (Cloudinary picks image/video/raw) |\n\n## Error contract\n\nSame shape as the rest of the API — `{ \"message\": \"...\" }` — produced by the shared `errorHandler`.\n\n| Status | Cause |\n| --- | --- |\n| `400` | No file attached, disallowed format/extension, or file over 10 MB |\n| `401` | Missing/invalid/expired token — every route here needs one |\n| `404` | `Media not found` — bad `:id` on update/delete |\n| `400` | Malformed `:id` (CastError) |\n\nCloudinary's own rejection (e.g. `\"An unknown file format not allowed\"`) is reported with Cloudinary's own `http_code`, which `errorHandler` now reads alongside `statusCode`/`status` — so a bad file type correctly comes back as `400`, not `500`.\n\n## Known quirk — nested path\n\nThe collection is mounted at `/api/media` in `server.js`, and the update/delete routes are themselves defined as `/media/:id` — so the real path is `/api/media/media/:id` (as used below). Not a typo in this collection; it matches the current route file.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "event": [
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "pm.test('Response time is under 5000ms', function () {",
+          "    pm.expect(pm.response.responseTime).to.be.below(5000);",
+          "});",
+          "",
+          "pm.test('Not rate limited', function () {",
+          "    pm.expect(pm.response.code).to.not.eql(429);",
+          "});"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "Upload Media (single)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 201', function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "",
+              "if (pm.response.code === 201) {",
+              "    pm.environment.set('media_id', pm.response.json().media._id);",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": null,
+              "description": "Required. jpg, png, jpeg, webp, or mp4 — max 10 MB."
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{base_url}}/api/media/upload",
+          "host": ["{{base_url}}"],
+          "path": ["api", "media", "upload"]
+        },
+        "description": "Uploads a single file to Cloudinary and creates a `Media` record.\n\n`🔒 Authenticated` — any logged-in user, no role restriction. `📎 multipart/form-data`\n\n> Do **not** set `Content-Type` manually — Postman generates the multipart boundary for you.\n\n### Form fields\n\n| Field | Type | Required | Notes |\n| --- | --- | --- | --- |\n| `file` | **file** | ✅ | jpg / png / jpeg / webp / mp4, ≤ 10 MB |\n\n### Responses\n\n**201 Created**\n```json\n{\n  \"message\": \"Upload successful\",\n  \"media\": {\n    \"_id\": \"66f4...\",\n    \"url\": \"https://res.cloudinary.com/<cloud_name>/image/upload/v.../my_app_uploads/abc123.png\",\n    \"publicId\": \"my_app_uploads/abc123\",\n    \"uploadedBy\": \"66f0...\",\n    \"createdAt\": \"2026-08-06T...\"\n  }\n}\n```\n\n| Status | Cause |\n| --- | --- |\n| `400` | `No file uploaded` — the `file` field was empty |\n| `400` | `An unknown file format not allowed` — extension not in the allowed list |\n| `400` | File exceeds 10 MB |\n| `401` | No/invalid/expired token |\n\nThe created record's `_id` is saved to `{{media_id}}` for the update/delete requests below."
+      },
+      "response": []
+    },
+    {
+      "name": "Upload Media (multiple)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 201', function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "",
+              "const body = pm.response.json();",
+              "if (pm.response.code === 201 && Array.isArray(body.media) && body.media.length > 0) {",
+              "    pm.environment.set('media_id', body.media[0]._id);",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "files",
+              "type": "file",
+              "src": null,
+              "description": "Select multiple files, or add this key again — max 5 total."
+            },
+            {
+              "key": "files",
+              "type": "file",
+              "src": null,
+              "disabled": true,
+              "description": "Optional second file."
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{base_url}}/api/media/upload-multiple",
+          "host": ["{{base_url}}"],
+          "path": ["api", "media", "upload-multiple"]
+        },
+        "description": "Uploads up to 5 files in one request, each becoming its own `Media` record.\n\n`🔒 Authenticated` — any logged-in user. `📎 multipart/form-data`\n\n### Form fields\n\n| Field | Type | Required | Notes |\n| --- | --- | --- | --- |\n| `files` | **file** (repeat the key) | ✅ | Up to 5 files, same format/size limits as single upload |\n\n### Responses\n\n**201 Created**\n```json\n{\n  \"message\": \"Upload successful\",\n  \"media\": [\n    { \"_id\": \"66f4...\", \"url\": \"https://res.cloudinary.com/...\", \"publicId\": \"my_app_uploads/...\" },\n    { \"_id\": \"66f5...\", \"url\": \"https://res.cloudinary.com/...\", \"publicId\": \"my_app_uploads/...\" }\n  ]\n}\n```\n\n| Status | Cause |\n| --- | --- |\n| `400` | `No files uploaded` — `files` field was empty |\n| `400` | Any file has a disallowed format, or exceeds 10 MB |\n| `401` | No/invalid/expired token |\n\nEach file uploads independently via `Promise.all` — if one fails, the whole request fails and no partial `Media` records are left behind (Mongoose calls reject together)."
+      },
+      "response": []
+    },
+    {
+      "name": "Update Media",
+      "request": {
+        "method": "PUT",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": null,
+              "description": "Required. Replaces the existing file entirely."
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{base_url}}/api/media/media/{{media_id}}",
+          "host": ["{{base_url}}"],
+          "path": ["api", "media", "media", "{{media_id}}"]
+        },
+        "description": "Replaces a media record's file with a new upload.\n\n`🔒 Authenticated` — any logged-in user, no ownership check (any authenticated user can update any media record by id). `📎 multipart/form-data`\n\n### Path params\n\n| Param | Description |\n| --- | --- |\n| `id` | Mongo ObjectId of the `Media` document. Defaults to `{{media_id}}`. |\n\n### Form fields\n\n| Field | Type | Required |\n| --- | --- | --- |\n| `file` | **file** | ✅ |\n\n### What happens\n\n1. Looks up the existing `Media` doc.\n2. Deletes the **old** file from Cloudinary (`cloudinary.uploader.destroy`).\n3. Uploads the new file, overwrites `url` and `publicId`, saves.\n\n### Responses\n\n**200 OK**\n```json\n{\n  \"message\": \"Media updated successfully\",\n  \"media\": { \"_id\": \"66f4...\", \"url\": \"https://res.cloudinary.com/...\", \"publicId\": \"my_app_uploads/...\" }\n}\n```\n\n| Status | Cause |\n| --- | --- |\n| `404` | `Media not found` |\n| `400` | `No file uploaded`, or the new file fails format/size validation |\n| `400` | Malformed `:id` (CastError) |\n| `401` | No/invalid/expired token |"
+      },
+      "response": []
+    },
+    {
+      "name": "Delete Media",
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/media/media/{{media_id}}",
+          "host": ["{{base_url}}"],
+          "path": ["api", "media", "media", "{{media_id}}"]
+        },
+        "description": "Deletes a media record and its Cloudinary asset.\n\n`🔒 Authenticated` — any logged-in user, no ownership check.\n\n### Path params\n\n| Param | Description |\n| --- | --- |\n| `id` | Mongo ObjectId of the `Media` document. Defaults to `{{media_id}}`. |\n\n### What happens\n\n1. Looks up the `Media` doc — `404` if missing.\n2. Deletes the asset from Cloudinary via `publicId`.\n3. Deletes the MongoDB record.\n\n### Responses\n\n| Status | Body |\n| --- | --- |\n| `200` | `{ \"message\": \"Deleted successfully\" }` |\n| `404` | `{ \"message\": \"Media not found\" }` |\n| `400` | Malformed `:id` (CastError) |\n| `401` | No/invalid/expired token |\n\nHard delete — no soft-delete flag, and this is irreversible on the Cloudinary side."
+      },
+      "response": []
+    }
+  ]
+}
