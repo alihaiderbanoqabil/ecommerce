@@ -8,6 +8,7 @@ import { baseApi } from "../store/api/baseApi";
 import { notificationApi } from "../store/api/notificationApi";
 import { useAuthUser } from "../hooks/useAuthUser";
 import { formatCurrency } from "../utils/format";
+import { playNotificationSound } from "../utils/notificationSound";
 
 /**
  * Socket.IO listener — koi UI nahi. Events ko toast + notification list +
@@ -31,7 +32,13 @@ export default function RealtimeListener() {
 
     // Live notification ko list ke sab se upar daal deta hai
     const prependToList = (payload) => {
+      // Guest ke liye khamoshi: uska koi bell/record nahi hota, sirf toast —
+      // store browse karte hue achanak beep bajna ajeeb lagta hai
       if (!isLoggedIn || !payload._id) return;
+
+      // Awaaz yahan hai kyunke har event isi funnel se guzarta hai — har
+      // handler mein alag se lagane ki zarorat nahi
+      playNotificationSound();
 
       dispatch(
         notificationApi.util.updateQueryData("getNotifications", undefined, (draft) => {

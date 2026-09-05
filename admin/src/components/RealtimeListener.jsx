@@ -6,6 +6,7 @@ import { socket } from "../socket";
 import { baseApi } from "../store/api/baseApi";
 import { notificationApi } from "../store/api/notificationApi";
 import { useGetMeQuery } from "../store/api/authApi";
+import { playNotificationSound } from "../utils/notificationSound";
 
 /**
  * Socket.IO listener — UI nahi rakhta. Events ko antd notification, bell ki
@@ -36,6 +37,10 @@ export default function RealtimeListener() {
     // Live notification ko bell ki list ke sab se upar daal deta hai
     const prependToList = (payload) => {
       if (!payload._id) return;
+
+      // Awaaz yahan hai kyunke har event isi funnel se guzarta hai — har
+      // handler mein alag se lagane ki zarorat nahi
+      playNotificationSound();
 
       dispatch(
         notificationApi.util.updateQueryData("getNotifications", undefined, (draft) => {
