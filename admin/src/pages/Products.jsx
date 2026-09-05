@@ -32,6 +32,7 @@ export default function Products() {
   const [sort, setSort] = useState(DEFAULT_SORT);
   const [searchText, setSearchText] = useState("");
   const [category, setCategory] = useState();
+  const [status, setStatus] = useState(); // undefined = active + inactive dono
   const [priceRange, setPriceRange] = useState({ min: null, max: null });
   const [editing, setEditing] = useState(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -41,16 +42,18 @@ export default function Products() {
   // Filter badalne par page 1 par wapis — warna page 7 par khali table milta hai
   useEffect(() => {
     setPage(1);
-  }, [search, category, priceRange]);
+  }, [search, category, status, priceRange]);
 
   const params = useMemo(() => {
     const next = { page, limit, sort };
     if (search.trim()) next.search = search.trim();
     if (category) next.category = category;
+    // status undefined = filter hi nahi bhejte, to backend dono bhejta hai
+    if (status) next.isActive = status === "active";
     if (priceRange.min != null) next["price[gte]"] = priceRange.min;
     if (priceRange.max != null) next["price[lte]"] = priceRange.max;
     return next;
-  }, [page, limit, sort, search, category, priceRange]);
+  }, [page, limit, sort, search, category, status, priceRange]);
 
   const { data, isFetching, error, refetch } = useGetProductsQuery(params);
   // Category filter aur drawer ka select — dono ko poori list chahiye, sirf
@@ -235,12 +238,6 @@ export default function Products() {
         </Space>
       </Flex>
 
-      <Alert
-        type="info"
-        showIcon
-        message="GET /products only returns active products, so anything you deactivate disappears from this table."
-      />
-
       <Card size="small">
         <Flex gap={12} wrap align="flex-end">
           <Input
@@ -267,6 +264,18 @@ export default function Products() {
             }))}
           />
 
+          <Select
+            allowClear
+            style={{ width: 150 }}
+            placeholder="All statuses"
+            value={status}
+            onChange={setStatus}
+            options={[
+              { value: "active", label: "Active" },
+              { value: "inactive", label: "Inactive" },
+            ]}
+          />
+
           <Space.Compact>
             <InputNumber
               min={0}
@@ -286,6 +295,7 @@ export default function Products() {
             onClick={() => {
               setSearchText("");
               setCategory(undefined);
+              setStatus(undefined);
               setPriceRange({ min: null, max: null });
               setSort(DEFAULT_SORT);
             }}

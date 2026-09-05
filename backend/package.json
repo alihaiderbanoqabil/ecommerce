@@ -8,7 +8,10 @@
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
     "seed": "node src/seed/seed.js",
-    "check:sessions": "node src/utils/authCookie.check.js"
+    "check:sessions": "node src/utils/authCookie.check.js",
+    "check:cloudinary": "node src/utils/cloudinaryUrl.check.js",
+    "check:query": "node src/utils/queryService.check.js",
+    "orphans": "node src/utils/cloudinaryOrphans.js"
   },
   "keywords": [],
   "author": "",

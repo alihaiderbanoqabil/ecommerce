@@ -3,16 +3,6 @@ const Product = require("../models/product.model");
 const AppError = require("../utils/AppError");
 const { queryService } = require("../utils/queryService");
 
-// queryService user ki query ko baseFilter ke UPAR merge karta hai, to client
-// `?product=<koi aur id>` ya `?isActive=false` bhej kar hamara pinned filter
-// override kar sakta hai. Is liye jo keys hum server-side pin karte hain unhe
-// query se nikal dete hain.
-const stripPinnedKeys = (query, keys) => {
-    const safe = { ...query };
-    keys.forEach((key) => delete safe[key]);
-    return safe;
-};
-
 // Reply ko uske parent ke andar nest kar deta hai (1 level deep threads).
 const attachReplies = (comments, replies) => {
     const byParent = new Map();
@@ -39,8 +29,11 @@ const getComments = async (req, res) => {
 
     const result = await queryService(
         Comment,
-        isAdmin ? req.query : stripPinnedKeys(req.query, ["isActive"]),
+        req.query,
         {
+            // Non-admin ka isActive pinned hai — queryService baseFilter ko
+            // client ki query ke upar rakhta hai, is liye `?isActive=false`
+            // bhejne se bhi hidden comments nahi milte.
             baseFilter: isAdmin ? {} : { isActive: true },
             searchFields: ["text"],
             populate: [

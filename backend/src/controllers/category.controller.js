@@ -1,25 +1,7 @@
-const fs = require("fs/promises");
-const path = require("path");
 const Category = require("../models/category.model");
 const AppError = require("../utils/AppError");
+const { destroyImages } = require("../utils/cloudinaryUrl");
 const { queryService } = require("../utils/queryService");
-
-// Helper: delete a file if it exists, given the stored "/uploads/xxx.png" style path
-const deleteImageFile = async (imagePath) => {
-    if (!imagePath) return;
-    try {
-        // imagePath is like "/uploads/filename.png" -> resolve to actual disk path.
-        // From src/controllers, uploads/ lives two levels up (backend/uploads).
-        const filePath = path.join(__dirname, "../..", imagePath);
-        await fs.unlink(filePath);
-    } catch (err) {
-        // Cleanup best-effort hai: file missing ho to bhi request fail nahi honi chahiye
-        if (err.code !== "ENOENT") {
-            console.error("Failed to delete old image:", err.message);
-        }
-        // ENOENT = file already missing, safe to ignore
-    }
-};
 
 // Recursive function to build nested category tree
 const buildCategoryTree = (categories, parentId = null) => {
@@ -85,8 +67,10 @@ const getCategoryById = async (req, res) => {
 const createCategory = async (req, res) => {
     const payload = { ...req.body };
     if (req.file) {
-        // payload.image = `http://localhost:5000/uploads/${req.file.filename}`; // don't store localhost urls or domain names like this while save file path in DB "http://localhost:5000"
-        payload.image = `/uploads/${req.file.filename}`;
+        // multer-storage-cloudinary `file.path` mein poora https URL deta hai —
+        // wohi save karte hain, kyunke frontend usay seedha <img src> mein
+        // laga deta hai (chahe wo kisi bhi domain par chal raha ho).
+        payload.image = req.file.path;
     }
 
     // Duplicate name/slug unique index se takra jata hai — errorHandler isay
@@ -105,14 +89,17 @@ const updateCategory = async (req, res) => {
     const payload = { ...req.body };
 
     if (req.file) {
-        payload.image = `/uploads/${req.file.filename}`;
-
-        // 2. Naya image aaya hai to purana delete karo
-        await deleteImageFile(existingCategory.image);
+        payload.image = req.file.path;
     }
 
-    // 3. Update karo
+    // 2. Update karo
     const category = await Category.findByIdAndUpdate(req.params.id, payload, { new: true });
+
+    // 3. DB set hone ke BAAD purani image hatao — pehle hatane par ek nakaam
+    //    update category ko bina image ke chhor deta tha
+    if (req.file) {
+        await destroyImages(existingCategory.image);
+    }
 
     return res.json({ message: "Category updated successfully", category });
 };
@@ -122,6 +109,8 @@ const deleteCategory = async (req, res) => {
     if (!category) {
         throw new AppError("Category not found", 404);
     }
+
+    await destroyImages(category.image);
 
     return res.json({ message: "Category deleted successfully" });
 };

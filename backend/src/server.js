@@ -14,8 +14,6 @@ const { xss } = require('express-xss-sanitizer');
 // req.cookies bharta hai — httpOnly auth cookie parhne ke liye zaroori hai
 const cookieParser = require('cookie-parser');
 
-const path = require("path");
-
 const connectDB = require("./config/db");
 const allowedOrigins = require("./config/corsOrigins");
 const { notFound, errorHandler } = require("./middlewares/errorHandler");
@@ -112,10 +110,10 @@ const limiter = rateLimit({
     standardHeaders: true,    // return rate limit info in RateLimit-* headers
     legacyHeaders: false,     // disable X-RateLimit-* headers
     message: TOO_MANY,
-    // Socket.IO ka long-polling aur uploads ki static files ginne ka koi
-    // faida nahi — ye abuse ka raasta nahi hain, magar limit foran khatam kar
-    // dete hain (ek realtime page khula rakhne se hi 429 aa jata tha).
-    skip: (req) => req.path.startsWith('/socket.io') || req.path.startsWith('/uploads'),
+    // Socket.IO ka long-polling ginne ka koi faida nahi — ye abuse ka raasta
+    // nahi hai, magar limit foran khatam kar deta hai (ek realtime page khula
+    // rakhne se hi 429 aa jata tha).
+    skip: (req) => req.path.startsWith('/socket.io'),
 });
 app.use(limiter);
 
@@ -138,9 +136,10 @@ app.use(express.json());
 // Middleware to parse URL-encoded request bodies
 app.use(express.urlencoded({ extended: true })); 
 // Cookies ko req.cookies mein parse karta hai (auth token cookie ke liye)
-app.use(cookieParser()); 
-// Serve static files from the uploads directory
-app.use("/uploads", express.static(path.join(__dirname, "../uploads"))); 
+app.use(cookieParser());
+// NOTE: pehle yahan `/uploads` static serve hota tha. Ab saari images Cloudinary
+// par jati hain (middlewares/cloudinaryUpload.js) — server koi file host nahi
+// karta, is liye Render par persistent disk ki zarorat bhi nahi.
 
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);

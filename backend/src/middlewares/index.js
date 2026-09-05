@@ -1,53 +1,22 @@
 const jwt = require("jsonwebtoken");
-const multer = require("multer");
-const fs = require("fs");
-const path = require("path");
-const mongoose = require("mongoose")
 const AppError = require("../utils/AppError");
 const { readTokenCookie } = require("../utils/authCookie");
+const { imageUpload } = require("./cloudinaryUpload");
 // console.log(__dirname, "__dirname");
 // console.log(__filename, "__filename");
 
-// the below 2 lines of code will automatically create uploads folder 
-const uploadDir = path.join(__dirname, "../../uploads");
-fs.mkdirSync(uploadDir, { recursive: true });
-
-
-const fileFilter = (req, file, cb) => {
-    if (file.mimetype.startsWith("image/")) return cb(null, true);
-    cb(new AppError("Only image files are allowed", 400));
-};
-
-const diskStorage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        // console.log({ req, file, cb }, "destination");
-        cb(null, uploadDir)
-    },
-    // filename: (req, file, cb) => {
-    //     const ext = path.extname(file.originalname);
-    //     const uniqueName = `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
-    //     cb(null, uniqueName);
-    // },
-    filename: (req, file, cb) => {
-        // console.log({ req, file, cb }, "filename");
-
-        const ext = path.extname(file.originalname);
-        // const name = path.basename(file.originalname, ext).replace(/\s+/g, "-");
-        // const uniqueName = `${name}-${new mongoose.Types.ObjectId()}${ext}`;
-        const uniqueName = `${new mongoose.Types.ObjectId()}${ext}`;
-        cb(null, uniqueName);
-    }
-});
-
-
-const upload = multer({
-    storage: diskStorage,
-    fileFilter: fileFilter,
-    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
-});
-
-const uploadSingle = (fieldName = "image") => upload.single(fieldName);
-const uploadMultiple = (fieldName = "images", maxCount = 5) => upload.array(fieldName, maxCount);
+/**
+ * Product/category images seedha Cloudinary par jati hain — pehle disk par
+ * (`uploads/` folder) rakhi jati thin, magar Render jaisi hosting par wo disk
+ * har deploy/restart par saaf ho jati hai aur images ghayab.
+ *
+ * Naam wahi rakhe hain (uploadSingle / uploadMultiple), sirf peeche ka storage
+ * badla hai — is liye routes jaisay thay wesay hi chal rahe hain. Controllers
+ * mein ab `file.path` (Cloudinary ka https URL) save hota hai, `/uploads/...`
+ * nahi. Details: middlewares/cloudinaryUpload.js
+ */
+const uploadSingle = (fieldName = "image") => imageUpload.single(fieldName);
+const uploadMultiple = (fieldName = "images", maxCount = 5) => imageUpload.array(fieldName, maxCount);
 
 
 /**
@@ -119,7 +88,6 @@ const authorizeRoles = (...roles) => (req, res, next) => {
 };
 
 module.exports = {
-    upload,
     getTokenFromRequest,
     authenticate,
     optionalAuthenticate,

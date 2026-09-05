@@ -11,7 +11,10 @@ const { authenticate, authorizeRoles, uploadMultiple, optionalAuthenticate } = r
 
 const router = express.Router();
 
-router.get("/", getProducts);
+// optionalAuthenticate: guest/customer aur admin dono is route se guzarte
+// hain, is liye req.user zabardasti nahi maang sakte — bas mil jaye to
+// getProducts usay dekh kar decide karta hai (admin ko inactive bhi dikhein)
+router.get("/", optionalAuthenticate, getProducts);
 router.get("/:id", getProductById);
 router.post("/", authenticate, authorizeRoles("admin"), uploadMultiple("images", 5), createProduct);
 router.patch("/:id", authenticate, authorizeRoles("admin"), uploadMultiple("images", 5), updateProduct);

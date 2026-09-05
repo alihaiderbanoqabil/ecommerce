@@ -1,4 +1,5 @@
 const AppError = require("../utils/AppError");
+const { destroyImages } = require("../utils/cloudinaryUrl");
 
 // Chalti hai jab koi route match na ho — har app.use("/api/...") ke baad register honi chahiye.
 // errorHandler ko de deta hai taake 404 ka response bhi baaqi errors jaisa hi shape rakhe.
@@ -13,7 +14,20 @@ const notFound = (req, res, next) => {
 const errorHandler = (err, req, res, next) => {
     // Response pehle se shuru ho chuka hai (jaise beech mein koi stream fail ho gaya) —
     // ab status/body badal nahi sakte, is liye Express ko connection band karne do.
+    // (Yahan upload cleanup bhi NAHI karte: response ja chuka hai, matlab record
+    // ban chuka hoga jo un files ko point karta hai.)
     if (res.headersSent) return next(err);
+
+    // multer file Cloudinary par bhej chuka hota hai IS SE PEHLE ke controller
+    // chale. Is liye har nakaam request — validation error, duplicate name,
+    // 404 — ek anaath file Cloudinary par chhor jati thi. Yahan ek hi jagah
+    // safai kar dete hain, har upload route ke liye (aur aage jo bhi banega).
+    //
+    // await nahi karte: error ka jawab foran jana chahiye, safai peeche chalti rahe.
+    const uploaded = req.files?.length ? req.files : req.file ? [req.file] : [];
+    if (uploaded.length) {
+        destroyImages(uploaded.map((file) => file.path)).catch(() => {});
+    }
 
     // AppError statusCode carry karta hai; http-errors (body-parser, etc.) status
     // carry karte hain; Cloudinary SDK apne errors http_code mein deta hai.

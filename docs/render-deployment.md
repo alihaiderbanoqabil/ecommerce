@@ -59,43 +59,29 @@ for exactly which env vars drive it.
    | `FRONTEND_URL` | the customer app's URL (Step 3) — used for verification/reset emails and Stripe redirect URLs |
    | `CORS_ORIGINS` | comma-separated customer + admin URLs (Steps 3–4), e.g. `https://shop-xxxx.onrender.com,https://admin-xxxx.onrender.com` |
    | `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_USER`, `EMAIL_PASS`, `EMAIL_FROM` | SMTP creds, optional — without them, verification/reset links are just logged to the Render service's logs |
-   | `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | needed for `/api/media` and, if you migrate to it, product/category images — see note below |
+   | `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | **required** — every image upload (products, categories, media) goes to Cloudinary, see note below |
    | `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET` | from Stripe — see [stripe-integration.md](stripe-integration.md), do this after the backend has a URL (Step 5) |
 
    You won't have `FRONTEND_URL`/`CORS_ORIGINS` values until Steps 3–4 exist. Deploy once with them pointed at placeholders (or left blank) and come back in Step 5 — Render redeploys automatically whenever you save new env vars.
 
 4. Create the service. Once it's live, note its URL, e.g. `https://ecommerce-backend-xxxx.onrender.com` — every other step needs it.
 
-### ⚠️ Uploaded images: local disk is not persistent on Render
+### Uploaded images: all Cloudinary, no disk needed
 
-Product and category image uploads (`POST /api/products`, `POST /api/categories`)
-use `multer` with **local disk storage** (`backend/uploads/`, served at `/uploads`) —
-see [`backend/src/middlewares/index.js`](../backend/src/middlewares/index.js).
-Render's standard web services have an **ephemeral filesystem**: anything written
-to disk is wiped on every deploy, restart, or free-tier spin-down. Uploaded product
-images will silently disappear.
+Render's standard web services have an **ephemeral filesystem** — anything written
+to disk is wiped on every deploy, restart, or free-tier spin-down. So **nothing**
+in this app writes files to disk: every upload (products, categories, and the
+`/api/media` routes) goes straight to Cloudinary via `multer-storage-cloudinary`,
+see [`backend/src/middlewares/cloudinaryUpload.js`](../backend/src/middlewares/cloudinaryUpload.js).
+Controllers store Cloudinary's absolute `https` URL (`file.path`), which the
+frontend drops straight into `<img src>` regardless of which domain it runs on.
 
-The `/api/media` route already uploads straight to Cloudinary
-(`multer-storage-cloudinary`, see [`backend/src/middlewares/cloudinaryUpload.js`](../backend/src/middlewares/cloudinaryUpload.js))
-— it's just not the code path that product/category creation uses. Two ways to
-handle this before going live with real product images:
+This means **no persistent disk add-on is needed** — the free tier is enough. The
+three `CLOUDINARY_*` env vars are **required** for image uploads to work; without
+them the backend still boots (and logs a warning at startup), but any upload fails.
 
-- **Recommended: point product/category uploads at Cloudinary too.** In
-  [`backend/src/routes/product.routes.js`](../backend/src/routes/product.routes.js) and
-  [`backend/src/routes/category.routes.js`](../backend/src/routes/category.routes.js), swap
-  `uploadMultiple("images", 5)` / `uploadSingle("image")` for
-  `cloudinaryUpload.array("images", 5)` / `cloudinaryUpload.single("image")`. Then in
-  [`product.controller.js`](../backend/src/controllers/product.controller.js) and
-  [`category.controller.js`](../backend/src/controllers/category.controller.js), read the
-  Cloudinary URL directly (`file.path`) instead of building `/uploads/${file.filename}` —
-  the frontend's `imageUrl()` helper already passes absolute `http(s)` URLs through
-  unchanged, so no frontend change is needed. Set the three `CLOUDINARY_*` env vars.
-- **Or: add a Render persistent disk** mounted at `backend/uploads` (Render dashboard →
-  service → Disks). This keeps the current code path working, but it's a paid add-on,
-  and it only works with a single instance (a persistent disk can't be shared across
-  multiple running copies of the service).
-
-Ask if you'd like the Cloudinary swap done — it's a handful of lines in the two files above.
+Replacing a category's image also deletes the old file from Cloudinary, so the
+free plan's storage doesn't fill up with orphans.
 
 ## Step 3 — Customer app (Render Static Site)
 

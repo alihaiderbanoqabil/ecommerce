@@ -112,7 +112,14 @@ const buildFilter = (query, baseFilter = {}) => {
         filter[field] = conditions;
     }
 
-    return { ...baseFilter, ...filter };
+    // baseFilter AAKHIR mein — yaani wo hamesha jeetta hai.
+    //
+    // Pehle ulta tha ({ ...baseFilter, ...filter }) aur client apni query se
+    // server ka pinned filter uraa sakta tha: `?user=<kisi aur ki id>` bhej kar
+    // customer doosre logon ki orders parh leta tha, aur `?isActive=false` se
+    // wo products/comments jo chhupaye gaye hain. Pinned filter ki poori
+    // maqsad hi ye hai ke usay override na kiya ja sake.
+    return { ...filter, ...baseFilter };
 };
 
 /**
@@ -146,7 +153,7 @@ const buildSearchCondition = (search, searchFields = []) => {
  * @param {import('mongoose').Model} Model  - Any Mongoose model
  * @param {Object} query                    - req.query
  * @param {Object} [options]
- * @param {Object}   [options.baseFilter={}]       - Mandatory server-side filter (merged before user filters)
+ * @param {Object}   [options.baseFilter={}]       - Mandatory server-side filter (client isay override nahi kar sakta)
  * @param {string[]} [options.searchFields=[]]     - Fields to search with regex; uses $text if empty
  * @param {Array<{path:string, select?:string}>} [options.populate=[]] - Populate config
  * @param {number}   [options.defaultLimit=10]     - Default page size
