@@ -59,10 +59,10 @@ const getProductComments = async (req, res) => {
         throw new AppError("Product not found", 404);
     }
 
-    // product / parentComment / isActive hum khud pin karte hain — client se nahi lete
-    const query = stripPinnedKeys(req.query, ["product", "parentComment", "isActive"]);
-
-    const result = await queryService(Comment, query, {
+    const result = await queryService(Comment, req.query, {
+        // product / parentComment / isActive server-side pinned hain —
+        // queryService baseFilter ko client ki query ke upar rakhta hai, is
+        // liye `?product=<koi aur id>` ya `?isActive=false` chalta nahi
         baseFilter: { product: product._id, parentComment: null, isActive: true },
         searchFields: ["text"],
         populate: [{ path: "user", select: "name" }],
