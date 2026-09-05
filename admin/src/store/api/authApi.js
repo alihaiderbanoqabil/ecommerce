@@ -15,8 +15,10 @@ export const authApi = baseApi.injectEndpoints({
 
     logout: builder.mutation({
       query: () => ({ url: "/auth/logout", method: "POST" }),
-      // Poora cache uraana zaroori hai — agla user doosre permissions ke sath aa sakta hai
-      invalidatesTags: ["Auth", "Product", "Category", "Order", "User", "Comment", "Stats"],
+      // Poora cache uraana zaroori hai — agla user doosre permissions ke sath aa sakta hai.
+      // Notification bhi shamil hai, warna agle admin ki bell mein pichle admin
+      // ki list (cache 5 min zinda rehta hai) dikhti rehti thi.
+      invalidatesTags: ["Auth", "Product", "Category", "Order", "User", "Comment", "Stats", "Notification"],
     }),
   }),
 });

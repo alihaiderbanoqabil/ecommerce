@@ -9,6 +9,11 @@ import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
  * credentials: "include" zaroori hai — auth token httpOnly cookie mein aata
  * hai, aur uske bagair browser wo cookie request ke sath bhejta hi nahi.
  *
+ * Admin portal ki tarah `X-Portal` header yahan nahi bhejte: server ka default
+ * yehi customer wali "token" cookie hai. Sirf admin apne aap ko pehchanwata hai
+ * (backend/src/utils/authCookie.js) — is se ek hi browser mein dono sessions
+ * alag rehti hain aur customer ke chalte sessions bhi nahi tootay.
+ *
  * baseUrl: local dev mein VITE_API_URL khali hota hai, is liye "/api" hi
  * reh jata hai aur vite dev server isay backend par proxy karta hai (sab kuch
  * same-origin). Production build mein customer aur backend alag domains par

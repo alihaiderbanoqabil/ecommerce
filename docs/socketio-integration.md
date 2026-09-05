@@ -20,19 +20,29 @@ Key files:
 ## Authentication: the same cookie, no separate token
 
 The client connects with `withCredentials: true` and no auth payload. The server
-reads the same httpOnly `token` cookie the REST API uses, straight out of the
+reads the same httpOnly auth cookie the REST API uses, straight out of the
 raw `Cookie` header during the Socket.IO handshake:
 
 ```js
 // backend/src/socket/index.js
-const token = readTokenCookie(socket.handshake.headers.cookie);
+const cookieName = cookieNameFor(socket.handshake.query?.portal); // admin -> admin_token, warna token
+const token = readCookie(socket.handshake.headers.cookie, cookieName);
 const user = token ? jwt.verify(token, process.env.JWT_SECRET) : null; // invalid/missing = guest, not an error
 ```
+
+Each portal has its **own** cookie name (`token` for the customer app,
+`admin_token` for the admin portal) because cookies are scoped by host, not by
+port — one name meant the last portal to log in silently took over the other's
+session. The admin socket therefore identifies itself with `query: { portal:
+"admin" }`; see [`backend/src/utils/authCookie.js`](../backend/src/utils/authCookie.js)
+for the whole rule, and `npm run check:sessions -w backend` for the regression check.
+(A custom header wouldn't work here: browsers don't allow custom headers on the
+WebSocket upgrade, but handshake query params reach both transports.)
 
 This only works when the browser actually sends that cookie with the WebSocket
 handshake, which requires:
 - The socket client's origin to be one of the backend's allowed CORS origins (`CORS_ORIGINS` — see [`backend/src/config/corsOrigins.js`](../backend/src/config/corsOrigins.js))
-- The cookie's `SameSite`/`Secure` flags to allow cross-site sending in production (`sameSite: "none", secure: true` when `NODE_ENV=production`, set in [`auth.controller.js`](../backend/src/controllers/auth.controller.js)) — which in turn requires the page to be served over HTTPS (Render static sites and web services both are, by default)
+- The cookie's `SameSite`/`Secure` flags to allow cross-site sending in production (`sameSite: "none", secure: true` when `NODE_ENV=production`, set in [`authCookie.js`](../backend/src/utils/authCookie.js)) — which in turn requires the page to be served over HTTPS (Render static sites and web services both are, by default)
 
 A missing or expired token doesn't reject the connection — it just connects as a
 guest. Guests still join the broadcast room (see below), so they get live "new

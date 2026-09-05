@@ -80,7 +80,10 @@ notificationSchema.index({ audience: 1, createdAt: -1 });
 notificationSchema.statics.filterFor = (userId, role) => ({
   $or: [
     { user: userId },
-    { user: null, audience: role === "admin" ? "admins" : "all" },
+    // Customer ke liye `$ne: "admins"` — sirf "all" match karte to wo purane
+    // broadcast records ghayab ho jate jo `audience` field add hone se pehle
+    // bane thay (un mein ye field hai hi nahi).
+    { user: null, audience: role === "admin" ? "admins" : { $ne: "admins" } },
   ],
 });
 

@@ -1,6 +1,7 @@
 const { Server } = require("socket.io");
 const jwt = require("jsonwebtoken");
 const allowedOrigins = require("../config/corsOrigins");
+const { cookieNameFor } = require("../utils/authCookie");
 
 /**
  * Socket.IO layer
@@ -27,17 +28,22 @@ const ROOMS = {
 
 // "a=1; token=xyz; b=2" -> "xyz". Ek chhota parser hi kaafi hai; cookie
 // library ka API version ke sath badal jata hai aur hamein sirf ek naam chahiye.
-const readTokenCookie = (header = "") =>
+const readCookie = (header = "", name) =>
   header
     .split(";")
     .map((part) => part.trim())
-    .filter((part) => part.startsWith("token="))
-    .map((part) => decodeURIComponent(part.slice("token=".length)))[0] || null;
+    .filter((part) => part.startsWith(`${name}=`))
+    .map((part) => decodeURIComponent(part.slice(name.length + 1)))[0] || null;
 
 // Handshake se user nikalta hai. Token na ho ya kharab ho to null — guest
 // connection allowed hai, kyunke product announcements sab ke liye hain.
+//
+// Admin portal handshake par `?portal=admin` bhejta hai, is liye uski apni
+// cookie parhi jati hai — warna ek hi browser mein customer ka token admin ke
+// socket par chala jata (utils/authCookie.js dekhen).
 const getUserFromHandshake = (socket) => {
-  const token = readTokenCookie(socket.handshake.headers.cookie);
+  const cookieName = cookieNameFor(socket.handshake.query?.portal);
+  const token = readCookie(socket.handshake.headers.cookie, cookieName);
   if (!token) return null;
 
   try {

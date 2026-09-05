@@ -4,6 +4,7 @@ const fs = require("fs");
 const path = require("path");
 const mongoose = require("mongoose")
 const AppError = require("../utils/AppError");
+const { readTokenCookie } = require("../utils/authCookie");
 // console.log(__dirname, "__dirname");
 // console.log(__filename, "__filename");
 
@@ -56,9 +57,14 @@ const uploadMultiple = (fieldName = "images", maxCount = 5) => upload.array(fiel
  *
  * Cookie ko pehle dekhte hain kyunke browser wahi bhejta hai; header fallback
  * ke tor par rakha hua hai taake purane clients aur API tests chalte rahen.
+ *
+ * Cookie ka naam portal ke hisab se badalta hai (admin_token vs token), taake
+ * ek hi browser mein admin aur customer ke sessions alag rahen —
+ * utils/authCookie.js dekhen.
  */
 const getTokenFromRequest = (req) => {
-    if (req.cookies?.token) return req.cookies.token;
+    const cookieToken = readTokenCookie(req);
+    if (cookieToken) return cookieToken;
 
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith("Bearer ")) return authHeader.split(" ")[1];

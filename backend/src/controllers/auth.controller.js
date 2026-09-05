@@ -5,8 +5,9 @@ const {
     // createVerificationToken,
     sendVerificationEmail,
     sendPasswordResetEmail } = require("../utils/email");
-
-const TOKEN_MAX_AGE = 7 * 24 * 60 * 60 * 1000; // 7 days — same as the JWT expiry
+// Cookie ka naam portal ke hisab se badalta hai (admin_token vs token) —
+// wajah utils/authCookie.js mein likhi hai.
+const { setTokenCookie, clearTokenCookie } = require("../utils/authCookie");
 
 // const createToken = (user, expiryTime) => {
 //     return jwt.sign(
@@ -39,26 +40,6 @@ const createToken = (user, expiryTime = "7d") => {
 //         { expiresIn: "7d" }
 //     );
 // };
-
-// Cookie ki options ek hi jagah. clearCookie ko bhi bilkul yehi options
-// (maxAge ke bagair) chahiye hoti hain — warna browser cookie ko match nahi
-// karta aur logout par wo delete hi nahi hoti.
-const tokenCookieOptions = () => {
-    const isProduction = process.env.NODE_ENV === "production";
-
-    return {
-        httpOnly: true,                           // JavaScript isay parh nahi sakta (XSS protection)
-        secure: isProduction,                     // HTTPS only in production
-        sameSite: isProduction ? "none" : "lax",  // "none" ke sath secure: true zaroori hai
-        path: "/",
-    };
-};
-
-// Sends the JWT as an httpOnly cookie so the browser attaches it automatically.
-// httpOnly keeps it out of reach of JavaScript, which protects it from XSS.
-const setTokenCookie = (res, token) => {
-    res.cookie("token", token, { ...tokenCookieOptions(), maxAge: TOKEN_MAX_AGE });
-};
 
 const register = async (req, res) => {
     // console.log(req.body, "body");
@@ -140,7 +121,7 @@ const login = async (req, res) => {
     //
     // Frontend ko `credentials: "include"` (ya axios mein `withCredentials: true`)
     // lagana zaroori hai, warna browser cookie na bhejega na rakhega.
-    setTokenCookie(res, createToken(user));
+    setTokenCookie(req, res, createToken(user));
 
     return res.json({
         message: "Login successfully",
@@ -167,7 +148,7 @@ const login = async (req, res) => {
  * refresh-token wala tareeqa chahiye hota hai.
  */
 const logout = async (req, res) => {
-    res.clearCookie("token", tokenCookieOptions());
+    clearTokenCookie(req, res);
 
     return res.json({ message: "Logout successfully" });
 };
@@ -251,7 +232,7 @@ const resetPassword = async (req, res) => {
 
     // Password badalne par purani session cookie bhi hata dete hain, taake
     // user ko naye password se fresh login karna paray.
-    res.clearCookie("token", tokenCookieOptions());
+    clearTokenCookie(req, res);
 
     return res.json({ message: "Password reset successfully. Please log in with your new password." });
 };

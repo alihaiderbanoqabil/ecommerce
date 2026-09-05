@@ -16,7 +16,25 @@ const apiBaseUrl = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_UR
 
 export const baseApi = createApi({
   reducerPath: "api",
-  baseQuery: fetchBaseQuery({ baseUrl: apiBaseUrl, credentials: "include" }),
+  baseQuery: fetchBaseQuery({
+    baseUrl: apiBaseUrl,
+    credentials: "include",
+    /**
+     * Har request par server ko batata hai ke ye admin portal hai, taake wo
+     * `admin_token` cookie set/parhe — na ke customer wali `token`.
+     *
+     * Zaroori is liye hai ke cookies port nahi dekhtin: ek hi browser mein
+     * localhost:5173 (customer) aur localhost:5174 (admin) ek hi cookie jar
+     * share karte hain, aur production mein bhi dono ek hi backend domain ki
+     * cookie bhejte hain. Is header ke bagair jo portal baad mein login karta
+     * wo doosre ka session overwrite kar deta tha.
+     * (backend/src/utils/authCookie.js)
+     */
+    prepareHeaders: (headers) => {
+      headers.set("X-Portal", "admin");
+      return headers;
+    },
+  }),
   tagTypes: ["Auth", "Product", "Category", "Order", "User", "Comment", "Stats", "Notification"],
 
   /**

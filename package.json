@@ -1,0 +1,20 @@
+{
+  "name": "ecommerce",
+  "private": true,
+  "version": "1.0.0",
+  "workspaces": [
+    "backend",
+    "admin",
+    "customer"
+  ],
+  "scripts": {
+    "dev": "concurrently -n backend,admin,customer -c blue,green,magenta \"npm run dev -w backend\" \"npm run dev -w admin\" \"npm run dev -w customer\"",
+    "dev:backend": "npm run dev -w backend",
+    "dev:admin": "npm run dev -w admin",
+    "dev:customer": "npm run dev -w customer",
+    "seed": "npm run seed -w backend"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
